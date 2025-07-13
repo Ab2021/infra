@@ -5,6 +5,7 @@ Manages user session data and conversation context using SQLite
 
 import sqlite3
 import asyncio
+import aiosqlite
 import json
 from typing import Dict, List, Optional, Any
 from datetime import datetime
@@ -18,17 +19,22 @@ class SessionMemory:
     Stores conversation history, user preferences, and session context.
     """
     
-    def __init__(self, db_path: str = "data/session_memory.db"):
-        # Security: Resolve and validate path to prevent directory traversal
-        self.db_path = str(Path(db_path).resolve())
-        if not self.db_path.startswith(str(Path.cwd())):
-            raise ValueError("Database path must be within current working directory")
+    def __init__(self, db_path: str = ":memory:", enable_persistence: bool = False, persistent_path: str = "data/session_memory.db"):
+        self.db_path = db_path
+        self.enable_persistence = enable_persistence
+        self.persistent_path = persistent_path
+        
+        # Security: Resolve and validate persistent path to prevent directory traversal
+        if self.enable_persistence and self.persistent_path != ":memory:":
+            self.persistent_path = str(Path(persistent_path).resolve())
+            if not self.persistent_path.startswith(str(Path.cwd())):
+                raise ValueError("Database path must be within current working directory")
+            
+            # Ensure directory exists with secure permissions
+            db_dir = Path(os.path.dirname(self.persistent_path))
+            db_dir.mkdir(parents=True, exist_ok=True, mode=0o750)
         
         self.logger = logging.getLogger(__name__)
-        
-        # Ensure directory exists with secure permissions
-        db_dir = Path(os.path.dirname(self.db_path))
-        db_dir.mkdir(parents=True, exist_ok=True, mode=0o750)
         
         # Initialize database
         self._initialize_database()
@@ -41,9 +47,18 @@ class SessionMemory:
         conn = sqlite3.connect(self.db_path, timeout=30.0, check_same_thread=False)
         # Security: Enable foreign key constraints and set secure pragmas
         conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute("PRAGMA journal_mode = WAL")
-        conn.execute("PRAGMA synchronous = NORMAL")
+        
+        # Configure for in-memory vs persistent storage
+        if self.db_path == ":memory:":
+            conn.execute("PRAGMA journal_mode = MEMORY")
+            conn.execute("PRAGMA synchronous = OFF")
+        else:
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+        
         conn.execute("PRAGMA temp_store = MEMORY")
+        conn.execute("PRAGMA cache_size = 10000")
+        conn.execute("PRAGMA mmap_size = 268435456")  # 256MB
         return conn
     
     def _initialize_database(self):
@@ -52,8 +67,15 @@ class SessionMemory:
         with sqlite3.connect(self.db_path, timeout=30.0, check_same_thread=False) as conn:
             # Security: Enable foreign key constraints and set secure pragmas
             conn.execute("PRAGMA foreign_keys = ON")
-            conn.execute("PRAGMA journal_mode = WAL")
-            conn.execute("PRAGMA synchronous = NORMAL")
+            
+            # Configure for in-memory vs persistent storage
+            if self.db_path == ":memory:":
+                conn.execute("PRAGMA journal_mode = MEMORY")
+                conn.execute("PRAGMA synchronous = OFF")
+            else:
+                conn.execute("PRAGMA journal_mode = WAL")
+                conn.execute("PRAGMA synchronous = NORMAL")
+            
             conn.execute("PRAGMA temp_store = MEMORY")
             conn.execute("PRAGMA mmap_size = 268435456")  # 256MB
             conn.execute("PRAGMA cache_size = 10000")
@@ -116,6 +138,135 @@ class SessionMemory:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_results_session_id ON processing_results(session_id)")
             
             conn.commit()
+            
+        # Load from persistent storage if enabled
+        if self.enable_persistence and os.path.exists(self.persistent_path):
+            asyncio.run(self._load_from_persistent())
+    
+    async def _load_from_persistent(self):
+        \"\"\"Load data from persistent storage to in-memory database\"\"\"
+        if not self.enable_persistence or self.db_path != \":memory:\":
+            return
+            
+        try:
+            async with aiosqlite.connect(self.persistent_path) as source_db:
+                async with aiosqlite.connect(self.db_path) as target_db:
+                    # Copy data from persistent to in-memory
+                    cursor = await source_db.execute(\"SELECT name FROM sqlite_master WHERE type='table'\")
+                    tables = await cursor.fetchall()
+                    
+                    for (table_name,) in tables:
+                        cursor = await source_db.execute(f\"SELECT * FROM {table_name}\")
+                        rows = await cursor.fetchall()
+                        
+                        if rows:
+                            cursor = await source_db.execute(f\"PRAGMA table_info({table_name})\")
+                            columns = await cursor.fetchall()
+                            column_names = [col[1] for col in columns]
+                            placeholders = ','.join(['?' for _ in column_names])
+                            
+                            await target_db.executemany(
+                                f\"INSERT OR REPLACE INTO {table_name} VALUES ({placeholders})\", 
+                                rows
+                            )
+                    
+                    await target_db.commit()
+        except Exception as e:
+            self.logger.warning(f\"Failed to load from persistent storage: {e}\")
+    
+    async def save_to_persistent(self):
+        \"\"\"Save in-memory data to persistent storage\"\"\"
+        if not self.enable_persistence or self.db_path != \":memory:\":
+            return
+            
+        try:
+            async with aiosqlite.connect(self.db_path) as source_db:
+                async with aiosqlite.connect(self.persistent_path) as target_db:
+                    # Ensure target has correct schema
+                    await self._create_tables_async(target_db)
+                    
+                    # Copy data from in-memory to persistent
+                    cursor = await source_db.execute(\"SELECT name FROM sqlite_master WHERE type='table'\")
+                    tables = await cursor.fetchall()
+                    
+                    for (table_name,) in tables:
+                        cursor = await source_db.execute(f\"SELECT * FROM {table_name}\")
+                        rows = await cursor.fetchall()
+                        
+                        if rows:
+                            cursor = await source_db.execute(f\"PRAGMA table_info({table_name})\")
+                            columns = await cursor.fetchall()
+                            column_names = [col[1] for col in columns]
+                            placeholders = ','.join(['?' for _ in column_names])
+                            
+                            await target_db.executemany(
+                                f\"INSERT OR REPLACE INTO {table_name} VALUES ({placeholders})\", 
+                                rows
+                            )
+                    
+                    await target_db.commit()
+        except Exception as e:
+            self.logger.error(f\"Failed to save to persistent storage: {e}\")
+    
+    async def _create_tables_async(self, db):
+        \"\"\"Create tables using async connection\"\"\"
+        await db.execute(\"PRAGMA foreign_keys = ON\")
+        await db.execute(\"PRAGMA journal_mode = WAL\")
+        await db.execute(\"PRAGMA synchronous = NORMAL\")
+        await db.execute(\"PRAGMA temp_store = MEMORY\")
+        
+        # Create all tables
+        await db.execute(\"\"\"
+            CREATE TABLE IF NOT EXISTS user_sessions (
+                session_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'active',
+                metadata TEXT
+            )
+        \"\"\")
+        
+        await db.execute(\"\"\"
+            CREATE TABLE IF NOT EXISTS conversation_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                query TEXT NOT NULL,
+                response TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                success BOOLEAN DEFAULT TRUE,
+                metadata TEXT,
+                FOREIGN KEY (session_id) REFERENCES user_sessions(session_id)
+            )
+        \"\"\")
+        
+        await db.execute(\"\"\"
+            CREATE TABLE IF NOT EXISTS user_preferences (
+                user_id TEXT PRIMARY KEY,
+                preferences TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        \"\"\")
+        
+        await db.execute(\"\"\"
+            CREATE TABLE IF NOT EXISTS processing_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                agent_name TEXT NOT NULL,
+                processing_data TEXT NOT NULL,
+                success BOOLEAN DEFAULT TRUE,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES user_sessions(session_id)
+            )
+        \"\"\")
+        
+        # Create indexes
+        await db.execute(\"CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON user_sessions(user_id)\")
+        await db.execute(\"CREATE INDEX IF NOT EXISTS idx_history_session_id ON conversation_history(session_id)\")
+        await db.execute(\"CREATE INDEX IF NOT EXISTS idx_history_user_id ON conversation_history(user_id)\")
+        await db.execute(\"CREATE INDEX IF NOT EXISTS idx_results_session_id ON processing_results(session_id)\")
     
     async def get_or_create_session(self, user_id: str, session_id: str) -> Dict:
         """

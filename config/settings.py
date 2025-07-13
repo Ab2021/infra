@@ -9,7 +9,10 @@ try:
     from pydantic_settings import BaseSettings
 except ImportError:
     # Fallback for older pydantic versions
-    from pydantic import BaseSettings
+    try:
+        from pydantic.v1 import BaseSettings
+    except ImportError:
+        from pydantic import BaseSettings
 
 from pydantic import Field
 from pathlib import Path
@@ -44,7 +47,10 @@ class Settings(BaseSettings):
     # === Memory System Settings ===
     memory_backend: str = Field(default="sqlite", description="Memory storage backend")
     session_db_path: str = Field(default=":memory:", description="SQLite path for session memory (use :memory: for in-memory)")
-    knowledge_db_path: str = Field(default="data/knowledge_memory.db", description="SQLite path for knowledge memory")
+    knowledge_db_path: str = Field(default=":memory:", description="SQLite path for knowledge memory (use :memory: for in-memory)")
+    # Persistent storage paths for when file-based storage is needed
+    persistent_session_db_path: str = Field(default="data/session_memory.db", description="File path for persistent session memory")
+    persistent_knowledge_db_path: str = Field(default="data/knowledge_memory.db", description="File path for persistent knowledge memory")
     use_redis: bool = Field(default=False, description="Enable Redis caching (optional)")
     redis_url: Optional[str] = Field(default=None, description="Redis URL for caching (optional)")
     

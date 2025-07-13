@@ -28,20 +28,33 @@ class LongTermKnowledgeMemory:
     and FAISS for vector similarity search.
     """
     
-    def __init__(self, db_path: str = "data/knowledge_memory.db", 
-                 vector_path: str = "data/vector_store"):
-        # Security: Resolve and validate paths to prevent directory traversal
-        self.db_path = str(Path(db_path).resolve())
+    def __init__(self, db_path: str = ":memory:", 
+                 vector_path: str = "data/vector_store",
+                 enable_persistence: bool = True,
+                 persistent_db_path: str = "data/knowledge_memory.db",
+                 embedding_model: str = "all-MiniLM-L6-v2",
+                 max_context_length: int = 10000):
+        self.db_path = db_path
         self.vector_path = str(Path(vector_path).resolve())
+        self.enable_persistence = enable_persistence
+        self.persistent_db_path = persistent_db_path
+        self.embedding_model_name = embedding_model
+        self.max_context_length = max_context_length
         
+        # Security: Resolve and validate paths to prevent directory traversal
         cwd = str(Path.cwd())
-        if not self.db_path.startswith(cwd) or not self.vector_path.startswith(cwd):
-            raise ValueError("Database and vector paths must be within current working directory")
+        if not self.vector_path.startswith(cwd):
+            raise ValueError("Vector path must be within current working directory")
+        
+        if self.enable_persistence and self.persistent_db_path != ":memory:":
+            self.persistent_db_path = str(Path(persistent_db_path).resolve())
+            if not self.persistent_db_path.startswith(cwd):
+                raise ValueError("Persistent database path must be within current working directory")
+            Path(os.path.dirname(self.persistent_db_path)).mkdir(parents=True, exist_ok=True, mode=0o750)
         
         self.logger = logging.getLogger(__name__)
         
-        # Ensure directories exist with secure permissions
-        Path(os.path.dirname(self.db_path)).mkdir(parents=True, exist_ok=True, mode=0o750)
+        # Ensure vector directory exists with secure permissions
         Path(self.vector_path).mkdir(parents=True, exist_ok=True, mode=0o750)
         
         # Initialize database
@@ -52,9 +65,14 @@ class LongTermKnowledgeMemory:
         self.embedding_model = None
         self.index_to_id = {}
         self.id_to_index = {}
+        self.context_cache = {}  # Cache for frequently accessed contexts
         
         if FAISS_AVAILABLE:
             self._initialize_vector_store()
+        
+        # Load from persistent storage if enabled
+        if self.enable_persistence and os.path.exists(self.persistent_db_path):
+            asyncio.run(self._load_from_persistent())
         
         # Connection pool for thread safety
         self._connection_lock = asyncio.Lock()
@@ -65,9 +83,18 @@ class LongTermKnowledgeMemory:
         conn = sqlite3.connect(self.db_path, timeout=30.0, check_same_thread=False)
         # Security: Enable foreign key constraints and set secure pragmas
         conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute("PRAGMA journal_mode = WAL")
-        conn.execute("PRAGMA synchronous = NORMAL")
+        
+        # Configure for in-memory vs persistent storage
+        if self.db_path == ":memory:":
+            conn.execute("PRAGMA journal_mode = MEMORY")
+            conn.execute("PRAGMA synchronous = OFF")
+        else:
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+        
         conn.execute("PRAGMA temp_store = MEMORY")
+        conn.execute("PRAGMA cache_size = 10000")
+        conn.execute("PRAGMA mmap_size = 268435456")  # 256MB
         return conn
     
     def _initialize_database(self):
@@ -76,8 +103,15 @@ class LongTermKnowledgeMemory:
         with sqlite3.connect(self.db_path, timeout=30.0, check_same_thread=False) as conn:
             # Security: Enable foreign key constraints and set secure pragmas
             conn.execute("PRAGMA foreign_keys = ON")
-            conn.execute("PRAGMA journal_mode = WAL")
-            conn.execute("PRAGMA synchronous = NORMAL")
+            
+            # Configure for in-memory vs persistent storage
+            if self.db_path == ":memory:":
+                conn.execute("PRAGMA journal_mode = MEMORY")
+                conn.execute("PRAGMA synchronous = OFF")
+            else:
+                conn.execute("PRAGMA journal_mode = WAL")
+                conn.execute("PRAGMA synchronous = NORMAL")
+            
             conn.execute("PRAGMA temp_store = MEMORY")
             conn.execute("PRAGMA mmap_size = 268435456")  # 256MB
             conn.execute("PRAGMA cache_size = 10000")
@@ -146,6 +180,335 @@ class LongTermKnowledgeMemory:
             
             conn.commit()
     
+    async def store_long_term_context(self, context_type: str, context_key: str, 
+                                    context_data: Dict, metadata: Dict = None,
+                                    ttl_hours: int = None) -> int:
+        """
+        Store long-term context with FAISS vector indexing
+        
+        Args:
+            context_type: Type of context (e.g., 'query_pattern', 'schema_insight', 'user_preference')
+            context_key: Unique key for the context
+            context_data: The actual context data
+            metadata: Additional metadata
+            ttl_hours: Time to live in hours (None for permanent)
+        
+        Returns:
+            Context ID
+        """
+        
+        # Create text representation for vector embedding
+        text_content = self._create_context_text(context_type, context_key, context_data)
+        
+        # Store in vector database if available
+        embedding_id = None
+        if self.vector_store is not None and len(text_content.strip()) > 0:
+            embedding_id = await self._add_context_to_vector_store(text_content, {
+                'context_type': context_type,
+                'context_key': context_key,
+                'context_data': context_data,
+                'metadata': metadata
+            })
+        
+        # Calculate expiration time
+        expires_at = None
+        if ttl_hours:
+            from datetime import datetime, timedelta
+            expires_at = (datetime.now() + timedelta(hours=ttl_hours)).isoformat()
+        
+        async with self._connection_lock:
+            with self._get_secure_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Check if we need to add new columns for enhanced context storage
+                cursor.execute("PRAGMA table_info(query_patterns)")
+                columns = [row[1] for row in cursor.fetchall()]
+                
+                if 'embedding_id' not in columns:
+                    # Add enhanced context storage table
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS long_term_contexts (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            context_type TEXT NOT NULL,
+                            context_key TEXT NOT NULL,
+                            context_data TEXT NOT NULL,
+                            embedding_id INTEGER,
+                            relevance_score REAL DEFAULT 1.0,
+                            access_count INTEGER DEFAULT 0,
+                            last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            expires_at TIMESTAMP,
+                            metadata TEXT
+                        )
+                    """)
+                    
+                    cursor.execute("""
+                        CREATE INDEX IF NOT EXISTS idx_context_type_key 
+                        ON long_term_contexts(context_type, context_key)
+                    """)
+                
+                cursor.execute("""
+                    INSERT OR REPLACE INTO long_term_contexts 
+                    (context_type, context_key, context_data, embedding_id, 
+                     expires_at, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    context_type, context_key, json.dumps(context_data),
+                    embedding_id, expires_at, json.dumps(metadata) if metadata else None
+                ))
+                
+                context_id = cursor.lastrowid
+                conn.commit()
+                
+                self.logger.debug(f"Stored long-term context: {context_type}/{context_key} (ID: {context_id})")
+                return context_id
+    
+    async def retrieve_long_term_context(self, context_type: str = None, 
+                                       context_key: str = None,
+                                       query_text: str = None,
+                                       top_k: int = 10,
+                                       similarity_threshold: float = 0.7) -> List[Dict]:
+        """
+        Retrieve long-term contexts using multiple strategies
+        
+        Args:
+            context_type: Filter by context type
+            context_key: Exact context key match
+            query_text: Text for similarity search
+            top_k: Maximum number of results
+            similarity_threshold: Minimum similarity score for vector search
+        
+        Returns:
+            List of matching contexts with relevance scores
+        """
+        
+        results = []
+        
+        async with self._connection_lock:
+            with self._get_secure_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Check if enhanced table exists
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='long_term_contexts'")
+                if not cursor.fetchone():
+                    return []
+                
+                # Strategy 1: Exact key match (highest priority)
+                if context_key:
+                    if context_type:
+                        cursor.execute("""
+                            SELECT id, context_type, context_key, context_data, 
+                                   relevance_score, access_count, metadata
+                            FROM long_term_contexts 
+                            WHERE context_type = ? AND context_key = ?
+                            AND (expires_at IS NULL OR expires_at > datetime('now'))
+                        """, (context_type, context_key))
+                    else:
+                        cursor.execute("""
+                            SELECT id, context_type, context_key, context_data, 
+                                   relevance_score, access_count, metadata
+                            FROM long_term_contexts 
+                            WHERE context_key = ?
+                            AND (expires_at IS NULL OR expires_at > datetime('now'))
+                        """, (context_key,))
+                    
+                    for row in cursor.fetchall():
+                        results.append({
+                            'id': row[0],
+                            'context_type': row[1],
+                            'context_key': row[2],
+                            'context_data': json.loads(row[3]),
+                            'relevance_score': row[4],
+                            'access_count': row[5],
+                            'metadata': json.loads(row[6]) if row[6] else {},
+                            'match_type': 'exact_key'
+                        })
+                
+                # Strategy 2: Vector similarity search
+                if query_text and self.vector_store is not None:
+                    vector_matches = await self._search_contexts_by_similarity(
+                        query_text, top_k, similarity_threshold
+                    )
+                    results.extend(vector_matches)
+                
+                # Strategy 3: Type-based retrieval
+                if context_type and not context_key:
+                    cursor.execute("""
+                        SELECT id, context_type, context_key, context_data, 
+                               relevance_score, access_count, metadata
+                        FROM long_term_contexts 
+                        WHERE context_type = ?
+                        AND (expires_at IS NULL OR expires_at > datetime('now'))
+                        ORDER BY relevance_score DESC, access_count DESC
+                        LIMIT ?
+                    """, (context_type, top_k))
+                    
+                    for row in cursor.fetchall():
+                        results.append({
+                            'id': row[0],
+                            'context_type': row[1],
+                            'context_key': row[2],
+                            'context_data': json.loads(row[3]),
+                            'relevance_score': row[4],
+                            'access_count': row[5],
+                            'metadata': json.loads(row[6]) if row[6] else {},
+                            'match_type': 'type_based'
+                        })
+        
+        # Remove duplicates and rank by relevance
+        seen_ids = set()
+        unique_results = []
+        for result in results:
+            if result['id'] not in seen_ids:
+                seen_ids.add(result['id'])
+                unique_results.append(result)
+        
+        # Sort by relevance score and access frequency
+        unique_results.sort(key=lambda x: (x.get('relevance_score', 0), x.get('access_count', 0)), reverse=True)
+        
+        # Update access statistics
+        if unique_results:
+            await self._update_context_access_stats([r['id'] for r in unique_results[:top_k]])
+        
+        return unique_results[:top_k]
+    
+    async def _search_contexts_by_similarity(self, query_text: str, top_k: int, threshold: float) -> List[Dict]:
+        """Search contexts using vector similarity"""
+        
+        if not FAISS_AVAILABLE or self.vector_store is None or self.vector_store.ntotal == 0:
+            return []
+        
+        try:
+            async with self._vector_lock:
+                # Generate query embedding
+                query_embedding = self.embedding_model.encode([query_text])
+                faiss.normalize_L2(query_embedding)
+                
+                # Search
+                scores, indices = self.vector_store.search(query_embedding, min(top_k * 2, self.vector_store.ntotal))
+                
+                # Retrieve context metadata
+                results = []
+                with self._get_secure_connection() as conn:
+                    cursor = conn.cursor()
+                    
+                    for score, index in zip(scores[0], indices[0]):
+                        if index == -1 or score < threshold:
+                            continue
+                            
+                        vector_id = self.index_to_id.get(index)
+                        if vector_id:
+                            cursor.execute("""
+                                SELECT vm.metadata, ltc.id, ltc.context_type, ltc.context_key,
+                                       ltc.context_data, ltc.relevance_score, ltc.access_count,
+                                       ltc.metadata as context_metadata
+                                FROM vector_metadata vm
+                                LEFT JOIN long_term_contexts ltc ON vm.vector_id = ltc.embedding_id
+                                WHERE vm.vector_id = ?
+                            """, (vector_id,))
+                            
+                            row = cursor.fetchone()
+                            if row and row[1]:  # Has context data
+                                results.append({
+                                    'id': row[1],
+                                    'context_type': row[2],
+                                    'context_key': row[3],
+                                    'context_data': json.loads(row[4]),
+                                    'relevance_score': max(float(score), row[5] or 0),
+                                    'access_count': row[6] or 0,
+                                    'metadata': json.loads(row[7]) if row[7] else {},
+                                    'similarity_score': float(score),
+                                    'match_type': 'vector_similarity'
+                                })
+                
+                return results
+                
+        except Exception as e:
+            self.logger.error(f"Vector similarity search failed: {e}")
+            return []
+    
+    async def _update_context_access_stats(self, context_ids: List[int]):
+        """Update access statistics for contexts"""
+        
+        async with self._connection_lock:
+            with self._get_secure_connection() as conn:
+                cursor = conn.cursor()
+                
+                for context_id in context_ids:
+                    cursor.execute("""
+                        UPDATE long_term_contexts 
+                        SET access_count = access_count + 1,
+                            last_accessed = datetime('now')
+                        WHERE id = ?
+                    """, (context_id,))
+                
+                conn.commit()
+    
+    def _create_context_text(self, context_type: str, context_key: str, context_data: Dict) -> str:
+        """Create searchable text representation of context"""
+        
+        text_parts = [f"Type: {context_type}", f"Key: {context_key}"]
+        
+        # Extract meaningful text from context data
+        if isinstance(context_data, dict):
+            for key, value in context_data.items():
+                if isinstance(value, (str, int, float)):
+                    text_parts.append(f"{key}: {value}")
+                elif isinstance(value, list):
+                    text_parts.append(f"{key}: {', '.join(map(str, value[:5]))}")
+        
+        return " | ".join(text_parts)
+    
+    async def _add_context_to_vector_store(self, text_content: str, context_metadata: Dict) -> int:
+        """Add context to FAISS vector store"""
+        
+        if not FAISS_AVAILABLE or self.vector_store is None:
+            return None
+        
+        try:
+            async with self._vector_lock:
+                # Generate embedding
+                embedding = self.embedding_model.encode([text_content])
+                faiss.normalize_L2(embedding)
+                
+                # Add to FAISS index
+                next_index = self.vector_store.ntotal
+                self.vector_store.add(embedding)
+                
+                # Store metadata in database
+                content_hash = str(hash(text_content))
+                
+                with self._get_secure_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO vector_metadata 
+                        (content_type, content_text, content_hash, faiss_index, metadata)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        context_metadata.get('context_type', 'unknown'),
+                        text_content[:self.max_context_length],  # Truncate if too long
+                        content_hash,
+                        next_index,
+                        json.dumps(context_metadata)
+                    ))
+                    
+                    vector_id = cursor.lastrowid
+                    
+                    # Update mappings
+                    self.index_to_id[next_index] = vector_id
+                    self.id_to_index[vector_id] = next_index
+                    
+                    conn.commit()
+                
+                # Save updated index
+                self._save_vector_store()
+                
+                return vector_id
+                
+        except Exception as e:
+            self.logger.error(f"Failed to add context to vector store: {e}")
+            return None
+    
     def _initialize_vector_store(self):
         """Initializes FAISS vector store for similarity search."""
         
@@ -154,8 +517,10 @@ class LongTermKnowledgeMemory:
         
         try:
             # Initialize sentence transformer model
-            self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            self.embedding_model = SentenceTransformer(self.embedding_model_name)
             embedding_dim = self.embedding_model.get_sentence_embedding_dimension()
+            
+            self.logger.info(f"Initialized embedding model: {self.embedding_model_name} (dim: {embedding_dim})")
             
             # Initialize or load FAISS index
             index_path = os.path.join(self.vector_path, "knowledge.index")
@@ -166,15 +531,32 @@ class LongTermKnowledgeMemory:
                 self.vector_store = faiss.read_index(index_path)
                 with open(mapping_path, 'rb') as f:
                     mapping_data = pickle.load(f)
-                    self.index_to_id = mapping_data['index_to_id']
-                    self.id_to_index = mapping_data['id_to_index']
+                    self.index_to_id = mapping_data.get('index_to_id', {})
+                    self.id_to_index = mapping_data.get('id_to_index', {})
+                    
+                self.logger.info(f"Loaded existing FAISS index with {self.vector_store.ntotal} vectors")
             else:
-                # Create new index
-                self.vector_store = faiss.IndexFlatIP(embedding_dim)  # Inner product for cosine similarity
+                # Create new index with better performance characteristics
+                # Use IndexIVFFlat for better performance with large datasets
+                if embedding_dim > 0:
+                    quantizer = faiss.IndexFlatIP(embedding_dim)
+                    nlist = min(100, max(1, embedding_dim // 4))  # Number of clusters
+                    self.vector_store = faiss.IndexIVFFlat(quantizer, embedding_dim, nlist)
+                    # Train with dummy data if no existing vectors
+                    dummy_vectors = np.random.random((max(nlist, 100), embedding_dim)).astype('float32')
+                    faiss.normalize_L2(dummy_vectors)
+                    self.vector_store.train(dummy_vectors)
+                else:
+                    self.vector_store = faiss.IndexFlatIP(embedding_dim)
+                
                 self.index_to_id = {}
                 self.id_to_index = {}
                 
-            self.logger.info(f"Vector store initialized with {self.vector_store.ntotal} vectors")
+                self.logger.info(f"Created new FAISS index (type: {type(self.vector_store).__name__})")
+                
+            # Set search parameters for IVF index
+            if hasattr(self.vector_store, 'nprobe'):
+                self.vector_store.nprobe = min(10, self.vector_store.nlist)  # Number of clusters to search
             
         except Exception as e:
             self.logger.error(f"Failed to initialize vector store: {str(e)}")
