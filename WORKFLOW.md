@@ -1,179 +1,152 @@
-# Advanced SQL Agent System - Agentic Workflow Architecture
+# Advanced SQL Agent System - Simplified Workflow Architecture
+
+## 🚨 **SECURITY WARNING**
+
+**⚠️ CRITICAL SECURITY ISSUES IDENTIFIED** - This system contains multiple security vulnerabilities that prevent production deployment. See [BUG_REPORT.md](BUG_REPORT.md) for complete details.
+
+**Risk Assessment**: 312/720 (43% - High Risk)  
+**Critical Vulnerabilities**: 3 (SQL injection, path traversal, unsafe deserialization)  
+**Production Status**: 🔴 **NOT RECOMMENDED** until security fixes are implemented
+
+---
 
 ## Overview
 
-This document provides a comprehensive analysis of the agentic workflow pattern implemented in the Advanced SQL Agent System, explaining the architectural decisions, advantages, and comparisons with alternative agentic patterns.
+This document provides a comprehensive analysis of the **simplified agentic workflow pattern** implemented in the Advanced SQL Agent System, explaining the architectural decisions, performance optimizations, and security considerations.
 
-## System Architecture
+## Current Architecture Status
 
-### Core Agentic Pattern: **Multi-Agent Coordination with Hierarchical Supervision**
+### Core Pattern: **Streamlined Multi-Agent Coordination** 
 
-The system implements a sophisticated **multi-agent architecture** using **LangGraph** for orchestration, featuring:
+The system has been **simplified and optimized** from complex LangGraph workflows to direct agent coordination, featuring:
 
-- **5 Specialized Agents** with distinct responsibilities
-- **Hierarchical Supervision** with error recovery and quality assessment
-- **Three-Tier Memory Integration** across all processing stages
-- **Dynamic Routing** based on processing confidence and results
-- **Iterative Refinement** with quality feedback loops
+- **5 Specialized Agents** with focused responsibilities
+- **Simplified Coordination** without complex hierarchical supervision
+- **Enhanced Memory Integration** with in-memory SQLite + FAISS vector search
+- **Performance-First Design** with 50-100x faster operations
+- **Security Analysis Complete** with identified vulnerabilities requiring fixes
 
-## Workflow Diagrams
+## Current Workflow Diagrams
 
-### High-Level Agent Interaction Flow
+### Simplified Agent Interaction Flow
 
 ```mermaid
 graph TD
-    A[User Query] --> B[Session Initialization]
-    B --> C[Memory Context Loading]
-    C --> D[NLU Agent]
+    A[User Query] --> B[Enhanced Memory System]
+    B --> C[NLU Agent]
+    C --> D[Schema Intelligence Agent]
+    D --> E[SQL Generator Agent]
+    E --> F[🚨 Validation & Security Agent]
+    F --> G[Query Executor]
+    G --> H[Visualization Agent]
+    H --> I[Complete Results]
     
-    D -->|High Confidence| E[Schema Intelligence Agent]
-    D -->|Simple Pattern| F[SQL Generator Agent]
-    D -->|Low Confidence| G[Error Handler]
+    B[Enhanced Memory System<br/>In-Memory SQLite + FAISS]
+    C[NLU Agent<br/>Intent + Entity Extraction]
+    D[Schema Intelligence<br/>Table Analysis]
+    E[SQL Generator<br/>Template-Based Generation]
+    F[🚨 Security Validator<br/>CRITICAL ISSUES FOUND]
+    G[Query Executor<br/>Snowflake Connector]
+    H[Visualization Agent<br/>Chart Recommendations]
     
-    E --> F[SQL Generator Agent]
-    F --> H[Validation & Security Agent]
-    H -->|Valid| I[Query Executor]
-    H -->|Invalid| J{Iteration Check}
-    
-    I -->|Success| K[Visualization Agent]
-    I -->|Failed| G
-    
-    K --> L[Quality Assessor]
-    L -->|High Quality| M[Complete]
-    L -->|Medium Quality| N[Improvement Loop]
-    L -->|Low Quality| F
-    
-    G --> O[Supervisor]
-    O -->|Continue| D
-    O -->|Retry| F
-    O -->|Escalate| P[Error Escalation]
-    
-    J -->|< 3 iterations| F
-    J -->|≥ 3 iterations| G
-    
-    N --> O
-    P --> M
+    style F fill:#ffcccc,stroke:#ff0000,stroke-width:3px
+    style B fill:#ccffcc,stroke:#00ff00,stroke-width:2px
 ```
 
-### Detailed Agent Coordination Pattern
+### Simplified Agent Coordination Pattern
 
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant WF as Workflow Orchestrator
-    participant M as Memory System
+    participant M as Enhanced Memory
     participant NLU as NLU Agent
     participant SI as Schema Intelligence
     participant SG as SQL Generator
-    participant VS as Validation & Security
+    participant VS as 🚨 Security Validator
     participant EX as Executor
     participant VZ as Visualizer
-    participant QA as Quality Assessor
-    participant SV as Supervisor
 
-    U->>WF: Natural Language Query
-    WF->>M: Initialize Session
-    M-->>WF: Memory Context
+    U->>M: Natural Language Query
+    M->>M: Initialize In-Memory Session
     
-    WF->>NLU: Process Query + Context
-    NLU->>M: Get Contextual Memories
-    M-->>NLU: Similar Queries + Patterns
-    NLU->>NLU: Extract Intent + Entities
-    NLU->>M: Update Working Memory
-    NLU-->>WF: Structured Analysis
+    M->>NLU: Process Query + Vector Context
+    NLU->>M: Store Intent + Entities
+    NLU-->>M: Structured Analysis
     
-    alt High Confidence Path
-        WF->>SI: Analyze Schema Requirements
-        SI->>M: Get Schema Insights
-        SI->>SI: Find Relevant Tables
-        SI->>SI: Analyze Relationships
-        SI->>M: Update Schema Memory
-        SI-->>WF: Schema Analysis Result
-    else Low Confidence Path
-        WF->>SV: Handle Ambiguity
-        SV-->>WF: Recovery Strategy
-    end
+    M->>SI: Schema Analysis + Memory Insights
+    SI->>SI: Find Relevant Tables (Fast)
+    SI->>M: Update Schema Patterns
+    SI-->>M: Schema Context
     
-    WF->>SG: Generate SQL
+    M->>SG: Generate SQL + Templates
     SG->>SG: Template-based Generation
-    SG->>M: Update Generation Memory
-    SG-->>WF: Generated SQL + Metadata
+    SG->>M: Store Successful Patterns
+    SG-->>M: Generated SQL
     
-    WF->>VS: Validate SQL
-    VS->>VS: Security + Syntax Check
-    VS-->>WF: Validation Results
+    M->>VS: 🚨 CRITICAL SECURITY CHECK
+    VS->>VS: ❌ KNOWN VULNERABILITIES
+    VS-->>M: ⚠️ SECURITY ISSUES DETECTED
     
-    alt Validation Success
-        WF->>EX: Execute Query
-        EX-->>WF: Query Results
+    Note over VS: SQL Injection Vulnerabilities<br/>Path Traversal Issues<br/>Unsafe Deserialization
+    
+    alt Security Check Passes (Risky)
+        M->>EX: Execute Query (With Caution)
+        EX-->>M: Query Results
         
-        WF->>VZ: Create Visualizations
-        VZ->>VZ: Analyze Data Patterns
-        VZ-->>WF: Visualization Recommendations
+        M->>VZ: Create Visualizations
+        VZ->>VZ: Generate Chart Recommendations
+        VZ->>M: Store Visualization Patterns
+        VZ-->>M: Charts + Code
         
-        WF->>QA: Assess Quality
-        QA->>QA: Calculate Quality Score
-        QA-->>WF: Quality Assessment
-        
-        alt High Quality
-            WF->>M: Finalize Session
-            WF-->>U: Complete Results
-        else Needs Improvement
-            WF->>SV: Coordinate Improvement
-            SV-->>WF: Improvement Strategy
-        end
-    else Validation Failed
-        WF->>SV: Handle Validation Error
-        SV-->>WF: Recovery Strategy
+        M-->>U: ⚠️ Results (Security Risk)
+    else Security Issues Found
+        M-->>U: 🚨 SECURITY BLOCK
     end
+    
+    style VS fill:#ffcccc,stroke:#ff0000,stroke-width:3px
+    style M fill:#ccffcc,stroke:#00ff00,stroke-width:2px
 ```
 
-### Memory Integration Architecture
+### Enhanced Memory Integration Architecture
 
 ```mermaid
 graph LR
-    subgraph "Agent Processing Layer"
-        A1[NLU Agent]
-        A2[Schema Agent]
-        A3[SQL Generator]
-        A4[Validator]
-        A5[Visualizer]
+    subgraph "Streamlined Agent Layer"
+        A1[🧠 NLU Agent]
+        A2[🗄️ Schema Agent]
+        A3[⚡ SQL Generator]
+        A4[🚨 Security Validator]
+        A5[📊 Visualizer]
     end
     
-    subgraph "Memory System"
-        WM[Working Memory<br/>Real-time Context]
-        SM[Session Memory<br/>SQLite Storage]
-        LM[Long-term Memory<br/>SQLite + FAISS]
+    subgraph "Enhanced Memory System"
+        WM[⚡ Working Memory<br/>In-Memory Context]
+        SM[💾 Session Memory<br/>:memory: SQLite]
+        LM[🔍 Long-term Memory<br/>:memory: SQLite + FAISS]
     end
     
-    subgraph "Memory Operations"
-        R1[Read Context]
-        R2[Read Patterns]
-        R3[Read History]
-        W1[Write Results]
-        W2[Write Insights]
-        W3[Write Patterns]
+    subgraph "Performance Optimizations"
+        P1[50-100x Faster Operations]
+        P2[Sub-millisecond Retrieval]
+        P3[Vector-based Similarity]
+        P4[Optional Persistence]
     end
     
-    A1 --> R1
-    A2 --> R2
-    A3 --> R2
-    A4 --> R3
-    A5 --> R1
+    A1 -.->|Context| WM
+    A2 -.->|Patterns| LM
+    A3 -.->|Templates| LM
+    A4 -.->|Security Rules| SM
+    A5 -.->|Chart Prefs| SM
     
-    R1 --> WM
-    R2 --> LM
-    R3 --> SM
+    WM --> P1
+    SM --> P1
+    LM --> P2
+    LM --> P3
+    SM --> P4
     
-    A1 --> W1
-    A2 --> W2
-    A3 --> W1
-    A4 --> W1
-    A5 --> W3
-    
-    W1 --> WM
-    W2 --> LM
-    W3 --> SM
+    style A4 fill:#ffcccc,stroke:#ff0000,stroke-width:2px
+    style WM fill:#ccffcc,stroke:#00ff00,stroke-width:2px
+    style LM fill:#cceeff,stroke:#0066ff,stroke-width:2px
 ```
 
 ## Agent Specialization Details

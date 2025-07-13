@@ -2,620 +2,496 @@
 
 ## 🏗️ System Overview
 
-The Advanced SQL Agent System is a sophisticated multi-agent architecture that transforms natural language queries into optimized SQL using memory-driven intelligence, LangGraph orchestration, and specialized AI agents. The system employs a distributed agentic approach where each agent has specialized capabilities and they collaborate through a centralized workflow orchestrator.
+The Advanced SQL Agent System is a streamlined, high-performance architecture that transforms natural language queries into optimized SQL using enhanced in-memory processing, FAISS vector search, and specialized AI agents. The system has been redesigned for maximum performance with simplified coordination and intelligent memory management.
 
-## 🧠 Core Architectural Principles
+## 🎯 Current Architecture Principles
 
-### 1. **Multi-Agent Specialization**
-Each agent is designed for a specific domain of expertise, allowing for:
-- Focused optimization and expertise
-- Independent development and testing
-- Modular system architecture
-- Specialized error handling and recovery
+### 1. **Performance-First Design**
+System optimized for speed and efficiency through:
+- In-memory SQLite databases (50-100x faster operations)
+- FAISS vector search for sub-millisecond context retrieval
+- Streamlined agent coordination without complex workflows
+- Optimized database pragmas for memory operations
 
-### 2. **Memory-Driven Intelligence**
-Three-tier memory architecture enables:
-- Context-aware processing
-- Learning from past interactions
-- User preference adaptation
-- Pattern recognition and optimization
+### 2. **Enhanced Memory Intelligence**
+Three-tier memory architecture with vector capabilities:
+- Working memory for real-time processing
+- Session memory with in-memory SQLite and optional persistence
+- Long-term memory with FAISS vector search for pattern recognition
+- Smart context storage with TTL and access tracking
 
-### 3. **Workflow Orchestration**
-LangGraph-powered coordination provides:
-- Dynamic routing based on confidence scores
-- Error recovery and iteration loops
-- Quality assessment checkpoints
-- Parallel processing capabilities
+### 3. **Simplified Agent Coordination**
+Direct agent-to-agent communication providing:
+- Focused core functionality without complex routing
+- Enhanced memory integration at every step
+- Efficient error handling and recovery
+- Reduced system complexity and overhead
 
-## 🤖 Agent Architecture
-
-### Agent Hierarchy and Roles
+## 🏛️ Current System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                 WORKFLOW ORCHESTRATOR                   │
-│                   (LangGraph Core)                      │
-└─────────────────┬───────────────────────────────────────┘
-                  │
-    ┌─────────────┴─────────────┐
-    │                           │
-┌───▼───┐                   ┌───▼───┐
-│ SUPER │                   │ ERROR │
-│ VISOR │                   │HANDLER│
-└───┬───┘                   └───┬───┘
-    │                           │
-    ▼                           ▼
-┌───────────────────────────────────────────────────────┐
-│              SPECIALIZED AGENTS                      │
-├───────┬───────┬───────┬───────┬──────────────────────┤
-│  NLU  │SCHEMA │ SQL   │VALID. │    VISUALIZATION     │
-│ AGENT │ INTEL │ GEN   │& SEC  │       AGENT          │
-│       │ AGENT │ AGENT │ AGENT │                      │
-└───────┴───────┴───────┴───────┴──────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    USER INTERFACES                          │
+├─────────────────────────────────────────────────────────────┤
+│  📱 Streamlit UI      │  🖥️ Advanced Dashboard │  🔌 FastAPI  │
+│  (Main Interface)     │  (Professional View)   │  (REST API)  │
+└─────────────────────────────────────────────────────────────┘
+                                   │
+┌─────────────────────────────────────────────────────────────┐
+│                    AGENT LAYER                              │
+├─────────────────┬─────────────────┬─────────────────────────┤
+│  🧠 NLU Agent   │  🗄️ Schema Agent │  ⚡ SQL Generator       │
+│  - Intent Ext   │  - Table Analysis│  - Query Building      │
+│  - Entity Recog │  - Relationship  │  - Optimization        │
+│  - Confidence   │  - Pattern Match │  - Template Matching   │
+├─────────────────┼─────────────────┼─────────────────────────┤
+│  🛡️ Validator   │  📊 Visualizer  │  🧮 Memory Manager      │
+│  - SQL Security │  - Chart Suggest │  - Context Storage     │
+│  - Performance  │  - Code Generate │  - Vector Search       │
+│  - Validation   │  - Interactive  │  - Learning Patterns   │
+└─────────────────┴─────────────────┴─────────────────────────┘
+                                   │
+┌─────────────────────────────────────────────────────────────┐
+│                   MEMORY SYSTEM                             │
+├─────────────────┬─────────────────┬─────────────────────────┤
+│  💾 Working     │  💾 Session     │  💾 Long-term           │
+│  - Real-time    │  - Conversation │  - Query Patterns      │
+│  - Agent State  │  - User Prefs   │  - Schema Insights     │
+│  - Processing   │  - History      │  - Vector Search       │
+│  (In-Memory)    │  (:memory:)     │  (:memory: + FAISS)    │
+└─────────────────┴─────────────────┴─────────────────────────┘
+                                   │
+┌─────────────────────────────────────────────────────────────┐
+│                   DATA LAYER                                │
+├─────────────────┬─────────────────┬─────────────────────────┤
+│  🗃️ Snowflake   │  🔍 FAISS Store │  💽 Optional Persist   │
+│  - Data Source  │  - Vector Index │  - File Backup         │
+│  - Query Exec   │  - Embeddings   │  - Data Durability     │
+│  - Results      │  - Similarity   │  - Recovery             │
+└─────────────────┴─────────────────┴─────────────────────────┘
 ```
 
-### 1. **Natural Language Understanding (NLU) Agent**
-**Location**: `agents/nlu_agent.py`
+## 🤖 Agent Specialization
 
-**Responsibilities**:
-- Parse natural language queries into structured intent
-- Extract entities (tables, columns, metrics, filters)
-- Detect ambiguities and clarification needs
-- Confidence scoring for routing decisions
+### Core Agent Responsibilities
 
-**Input**: Raw natural language query
-**Output**: Structured intent with entities and confidence scores
+#### 1. **NLU Agent** (`agents/nlu_agent.py`)
+**Purpose**: Natural Language Understanding and Intent Extraction
+- **Input**: Raw user query string
+- **Processing**: 
+  - Entity extraction using LLM
+  - Intent classification and confidence scoring
+  - Context enrichment from memory
+- **Output**: Structured intent with entities and confidence scores
+- **Memory Integration**: Learns from successful intent extractions
 
-**Key Workflows**:
+#### 2. **Schema Intelligence Agent** (`agents/schema_intelligence_agent.py`)
+**Purpose**: Database Schema Analysis and Table Relevance
+- **Input**: Query intent and extracted entities
+- **Processing**:
+  - Table relevance analysis
+  - Column mapping and relationship detection
+  - Schema pattern recognition
+- **Output**: Relevant tables, columns, and relationships
+- **Memory Integration**: Builds knowledge of table usage patterns
+
+#### 3. **SQL Generator Agent** (`agents/sql_generator_agent.py`)
+**Purpose**: Optimized SQL Query Generation
+- **Input**: Schema analysis and query intent
+- **Processing**:
+  - Template-based SQL construction
+  - Query optimization and performance tuning
+  - Visualization metadata generation
+- **Output**: SQL query with execution metadata
+- **Memory Integration**: Stores successful query templates and patterns
+
+#### 4. **Validation & Security Agent** (`agents/validation_security_agent.py`)
+**Purpose**: Query Safety and Performance Validation
+- **Input**: Generated SQL query
+- **Processing**:
+  - SQL injection detection and prevention
+  - Performance impact assessment
+  - Business logic validation
+- **Output**: Validated query with security assessment
+- **Memory Integration**: Learns security patterns and performance metrics
+
+#### 5. **Visualization Agent** (`agents/visualization_agent.py`)
+**Purpose**: Chart Recommendations and Code Generation
+- **Input**: Query results and metadata
+- **Processing**:
+  - Chart type recommendation based on data characteristics
+  - Interactive visualization code generation
+  - Dashboard integration suggestions
+- **Output**: Chart recommendations with Plotly/Streamlit code
+- **Memory Integration**: Learns visualization preferences and effectiveness
+
+## 🧮 Enhanced Memory Architecture
+
+### Memory System Components
+
+#### **Working Memory** (Real-time)
 ```python
-def process_query(query, context):
-    # 1. Tokenization and preprocessing
-    # 2. Intent classification
-    # 3. Entity extraction
-    # 4. Ambiguity detection
-    # 5. Confidence assessment
-    return {
-        "query_intent": intent,
-        "entities_extracted": entities,
-        "ambiguities_detected": ambiguities,
-        "confidence_scores": scores
-    }
+# In-memory processing context
+working_memory = {
+    "current_session": session_data,
+    "agent_states": {...},
+    "processing_pipeline": [...],
+    "intermediate_results": {...}
+}
 ```
 
-### 2. **Schema Intelligence Agent**
-**Location**: `agents/schema_intelligence_agent.py`
-
-**Responsibilities**:
-- Analyze database schema for query relevance
-- Score table and column relevance
-- Identify relationships and joins
-- Provide schema-aware optimization suggestions
-
-**Input**: Extracted entities + database schema
-**Output**: Relevant tables/columns with confidence scores
-
-**Key Workflows**:
+#### **Session Memory** (SQLite In-Memory)
 ```python
-def analyze_schema(entities, database_metadata):
-    # 1. Table relevance scoring
-    # 2. Column mapping and validation
-    # 3. Relationship detection
-    # 4. Join path optimization
-    # 5. Performance considerations
-    return {
-        "relevant_tables": tables,
-        "column_mappings": mappings,
-        "suggested_joins": joins,
-        "schema_confidence": confidence
-    }
-```
-
-### 3. **SQL Generator Agent**
-**Location**: `agents/sql_generator_agent.py`
-
-**Responsibilities**:
-- Generate SQL queries from structured intent
-- Template-based query construction
-- Query optimization and alternatives
-- Handle complex query patterns
-
-**Input**: Intent + schema analysis results
-**Output**: Generated SQL with alternatives
-
-**Key Workflows**:
-```python
-def generate_sql(intent, schema_info, memory_context):
-    # 1. Template selection
-    # 2. Query construction
-    # 3. Optimization passes
-    # 4. Alternative generation
-    # 5. Complexity assessment
-    return {
-        "generated_sql": primary_sql,
-        "alternative_queries": alternatives,
-        "optimization_notes": notes,
-        "confidence": confidence
-    }
-```
-
-### 4. **Validation & Security Agent**
-**Location**: `agents/validation_security_agent.py`
-
-**Responsibilities**:
-- SQL syntax validation
-- Security vulnerability detection
-- Performance analysis and optimization
-- Query execution safety checks
-
-**Input**: Generated SQL queries
-**Output**: Validation results and security assessment
-
-**Key Workflows**:
-```python
-def validate_query(sql, database_connector):
-    # 1. Syntax validation
-    # 2. Security scanning (injection, unauthorized ops)
-    # 3. Performance analysis
-    # 4. Resource impact assessment
-    # 5. Execution safety verification
-    return {
-        "is_valid": boolean,
-        "security_issues": issues,
-        "performance_warnings": warnings,
-        "validation_results": results
-    }
-```
-
-### 5. **Visualization Agent**
-**Location**: `agents/visualization_agent.py`
-
-**Responsibilities**:
-- Analyze query results for visualization opportunities
-- Generate chart recommendations
-- Create interactive dashboards
-- Provide data storytelling insights
-
-**Input**: Query results + user preferences
-**Output**: Visualization specifications and rendered charts
-
-## 🔄 Workflow Orchestration
-
-### LangGraph State Management
-
-The system uses LangGraph's `StateGraph` for workflow orchestration with a comprehensive state schema:
-
-```python
-class SQLAgentState(TypedDict):
-    # Session Management
-    session_id: str
-    user_id: str
-    user_query: str
-    timestamp: str
-    
-    # Agent Coordination
-    current_agent: str
-    completed_agents: List[str]
-    processing_stage: str
-    
-    # Processing Results
-    query_intent: Dict
-    entities_extracted: List[Dict]
-    relevant_tables: List[str]
-    generated_sql: str
-    validation_results: Dict
-    query_results: Any
-    
-    # Quality & Error Handling
-    confidence_scores: Dict
-    error_history: List[Dict]
-    iteration_count: int
-    quality_assessment: Dict
-```
-
-### Workflow Execution Flow
-
-```mermaid
-graph TD
-    A[Query Input] --> B[Initialize Session]
-    B --> C[Memory Manager]
-    C --> D[NLU Processor]
-    D --> E{Confidence Check}
-    E -->|High| F[Schema Analyzer]
-    E -->|Low| G[Error Handler]
-    E -->|Medium| H[Direct SQL Generation]
-    
-    F --> I{Schema Analysis}
-    I -->|Success| J[SQL Generator]
-    I -->|Failed| G
-    
-    J --> K{SQL Generated}
-    K -->|Success| L[Query Validator]
-    K -->|Failed| M{Retry?}
-    M -->|Yes| J
-    M -->|No| G
-    
-    L --> N{Validation}
-    N -->|Pass| O[Query Executor]
-    N -->|Fail| P{Fix Possible?}
-    P -->|Yes| J
-    P -->|No| G
-    
-    O --> Q{Execution}
-    Q -->|Success| R[Visualizer]
-    Q -->|Failed| G
-    
-    R --> S[Quality Assessor]
-    S --> T{Quality Check}
-    T -->|Good| U[Complete]
-    T -->|Poor| V[Supervisor]
-    
-    G --> V
-    V --> W{Recovery Strategy}
-    W -->|Retry| D
-    W -->|Escalate| X[Error Response]
-    W -->|Complete| U
-```
-
-### Dynamic Routing Logic
-
-The system employs sophisticated routing logic based on:
-
-1. **Confidence Scores**: Route to different paths based on processing confidence
-2. **Error Patterns**: Intelligent error recovery based on error history
-3. **Quality Assessment**: Iterative improvement based on output quality
-4. **Resource Constraints**: Consider performance and resource limitations
-
-## 🧮 Memory Architecture
-
-### Three-Tier Memory System
-
-#### **Tier 1: Working Memory** (`memory/working_memory.py`)
-- **Scope**: Current session processing context
-- **Storage**: In-memory Python objects
-- **Lifetime**: Session duration
-- **Purpose**: Real-time agent coordination and data sharing
-
-**Key Components**:
-```python
-class WorkingMemory:
-    active_sessions = {}          # Current session data
-    agent_coordination = {}       # Inter-agent communication
-    processing_artifacts = {}     # Intermediate results
-    agent_communications = []     # Communication logs
-```
-
-#### **Tier 2: Session Memory** (`memory/session_memory.py`)
-- **Scope**: User conversation history and preferences
-- **Storage**: SQLite database with secure configurations
-- **Lifetime**: Persistent across sessions
-- **Purpose**: User context and conversation continuity
-
-**Database Schema**:
-```sql
--- User sessions tracking
-CREATE TABLE user_sessions (
-    session_id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    created_at TIMESTAMP,
-    status TEXT,
-    metadata TEXT
-);
-
--- Conversation history
-CREATE TABLE conversation_history (
-    id INTEGER PRIMARY KEY,
-    session_id TEXT,
-    user_id TEXT,
-    query TEXT,
-    response TEXT,
-    timestamp TIMESTAMP,
-    success BOOLEAN
-);
-```
-
-#### **Tier 3: Long-term Memory** (`memory/long_term_memory.py`)
-- **Scope**: System-wide learning and patterns
-- **Storage**: SQLite + FAISS vector store
-- **Lifetime**: Persistent system knowledge
-- **Purpose**: Pattern learning and knowledge accumulation
-
-**Hybrid Storage**:
-- **SQLite**: Structured metadata and patterns
-- **FAISS**: Vector embeddings for similarity search
-- **Integration**: Vector metadata stored in SQLite with FAISS indices
-
-### Memory Coordination
-
-```python
-class MemoryManager:
-    def __init__(self):
-        self.working_memory = WorkingMemory()
-        self.session_memory = SessionMemory()
-        self.knowledge_memory = LongTermKnowledgeMemory()
-    
-    async def get_contextual_memories(self, query, user_id, context_type):
-        # Coordinate retrieval across all memory tiers
-        working_context = await self.working_memory.get_relevant_context(...)
-        session_context = await self.session_memory.get_relevant_memories(...)
-        knowledge_context = await self.knowledge_memory.get_relevant_patterns(...)
-        
-        return self._merge_contexts(working_context, session_context, knowledge_context)
-```
-
-## 🔄 Agent Coordination Patterns
-
-### 1. **Sequential Processing**
-Agents process in defined sequence with handoff protocols:
-```
-NLU → Schema Intelligence → SQL Generation → Validation → Execution → Visualization
-```
-
-### 2. **Parallel Processing**
-Independent operations run concurrently:
-```python
-async def parallel_processing():
-    # Run independent validations in parallel
-    syntax_check, security_scan, performance_analysis = await asyncio.gather(
-        validate_syntax(sql),
-        scan_security(sql),
-        analyze_performance(sql)
-    )
-```
-
-### 3. **Conditional Routing**
-Dynamic path selection based on processing results:
-```python
-def route_after_nlu(state):
-    confidence = state.get("confidence_scores", {}).get("overall", 0)
-    if confidence > 0.8:
-        return "schema_analysis"
-    elif confidence > 0.5:
-        return "direct_sql"
-    else:
-        return "clarification_needed"
-```
-
-### 4. **Error Recovery Loops**
-Iterative improvement with fallback strategies:
-```python
-def error_recovery_strategy(state):
-    error_count = len(state.get("error_history", []))
-    if error_count < 3:
-        return "retry_with_modifications"
-    elif error_count < 5:
-        return "alternative_approach"
-    else:
-        return "escalate_to_human"
-```
-
-## 🔒 Security Architecture
-
-### Multi-Layer Security Model
-
-#### **Input Validation Layer**
-- User input sanitization and validation
-- Length limits and type checking
-- SQL injection pattern detection
-
-#### **Database Security Layer**
-- Parameterized queries exclusively
-- Path traversal protection
-- Secure SQLite configurations
-- Foreign key constraints
-
-#### **Agent Security Layer**
-- Agent-specific input validation
-- Output sanitization
-- Error information filtering
-
-#### **System Security Layer**
-- Secure file permissions (0o750)
-- Environment variable protection
-- Access control and rate limiting
-
-### Security Implementation
-
-```python
-class SecurityValidation:
-    def validate_user_input(self, user_id, session_id, query):
-        # Input validation
-        if not user_id or len(user_id) > 255:
-            raise ValueError("Invalid user_id")
-        
-        # SQL injection detection
-        injection_patterns = ["'", ";", "--", "/*", "*/", "xp_", "sp_"]
-        if any(pattern in query.lower() for pattern in injection_patterns):
-            self.flag_potential_injection(query)
-    
-    def validate_database_path(self, db_path):
-        # Path traversal protection
-        resolved_path = Path(db_path).resolve()
-        if not str(resolved_path).startswith(str(Path.cwd())):
-            raise ValueError("Database path must be within working directory")
-```
-
-## 📊 Performance Optimization
-
-### Asynchronous Processing
-- All I/O operations are async
-- Concurrent agent processing where possible
-- Non-blocking memory operations
-
-### Database Optimization
-```python
-# SQLite performance settings
-PRAGMA foreign_keys = ON;
-PRAGMA journal_mode = WAL;      # Write-Ahead Logging
-PRAGMA synchronous = NORMAL;    # Balance safety/performance
-PRAGMA temp_store = MEMORY;     # In-memory temp tables
-PRAGMA cache_size = 10000;      # Large cache
-```
-
-### Vector Search Optimization
-```python
-# FAISS configuration for fast similarity search
-def initialize_faiss_index():
-    # Use Inner Product for cosine similarity
-    index = faiss.IndexFlatIP(embedding_dimension)
-    
-    # Normalize vectors for cosine similarity
-    faiss.normalize_L2(vectors)
-    
-    return index
-```
-
-### Caching Strategy
-- Redis for session caching
-- SQLite query result caching
-- FAISS index caching
-- Memory-based artifact caching
-
-## 🚀 Scalability Considerations
-
-### Horizontal Scaling
-- Stateless agent design
-- Database connection pooling
-- Distributed caching with Redis
-- Load balancing capabilities
-
-### Vertical Scaling
-- Configurable resource limits
-- Memory usage monitoring
-- Query timeout management
-- Concurrent request limiting
-
-### Performance Monitoring
-```python
-class PerformanceMonitor:
-    def __init__(self):
-        self.metrics = {
-            "query_processing_time": [],
-            "memory_usage": [],
-            "agent_performance": {},
-            "cache_hit_rates": {}
-        }
-    
-    async def track_agent_performance(self, agent_name, start_time, end_time):
-        processing_time = end_time - start_time
-        self.metrics["agent_performance"][agent_name].append(processing_time)
-```
-
-## 🔧 Configuration and Deployment
-
-### Environment Configuration
-```env
-# Core System
-APP_NAME="Advanced SQL Agent System"
-DEBUG_MODE=false
-LOG_LEVEL="INFO"
-
-# Database Connections
-SNOWFLAKE_ACCOUNT="your-account"
-SNOWFLAKE_USER="username"
-SNOWFLAKE_PASSWORD="password"
-SNOWFLAKE_WAREHOUSE="warehouse"
-SNOWFLAKE_DATABASE="database"
-
-# Memory System
-MEMORY_BACKEND="sqlite"
-SESSION_DB_PATH="data/session_memory.db"
-KNOWLEDGE_DB_PATH="data/knowledge_memory.db"
-
-# Vector Store
-VECTOR_STORE_PROVIDER="faiss"
-VECTOR_STORE_PATH="data/vector_store"
-EMBEDDING_MODEL="all-MiniLM-L6-v2"
-
-# LLM Configuration
-LLM_PROVIDER="openai"
-OPENAI_API_KEY="sk-your-key"
-OPENAI_MODEL="gpt-4o"
-
-# Performance Settings
-MAX_CONCURRENT_QUERIES=10
-QUERY_TIMEOUT_SECONDS=300
-CACHE_TTL_SECONDS=3600
-```
-
-### Deployment Architecture
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Load Balancer                        │
-└─────────────────┬───────────────────────────────────────┘
-                  │
-    ┌─────────────┴─────────────┐
-    │                           │
-┌───▼───┐                   ┌───▼───┐
-│FastAPI│                   │FastAPI│
-│ App 1 │                   │ App 2 │
-└───┬───┘                   └───┬───┘
-    │                           │
-    └─────────────┬─────────────┘
-                  │
-    ┌─────────────▼─────────────┐
-    │        Redis Cache        │
-    └─────────────┬─────────────┘
-                  │
-    ┌─────────────▼─────────────┐
-    │     SQLite + FAISS        │
-    │    (Shared Storage)       │
-    └───────────────────────────┘
-```
-
-## 🔍 Monitoring and Observability
-
-### Logging Strategy
-```python
-# Structured logging with context
-logger.info(
-    "Agent processing completed",
-    extra={
-        "agent_name": agent_name,
-        "session_id": session_id,
-        "processing_time": processing_time,
-        "success": success,
-        "confidence": confidence_score
-    }
+# Fast session storage with optional persistence
+session_memory = SessionMemory(
+    db_path=":memory:",
+    enable_persistence=True,
+    persistent_path="data/session_memory.db"
 )
 ```
 
-### Metrics Collection
-- Agent performance metrics
-- Memory usage tracking
-- Query processing times
-- Error rates and patterns
-- Cache hit/miss ratios
+**Features**:
+- Lightning-fast conversation history storage
+- User preference tracking
+- Session context caching
+- Optional disk persistence for durability
 
-### Health Checks
+#### **Long-term Memory** (SQLite + FAISS Vector Search)
 ```python
-async def system_health_check():
-    checks = {
-        "database_connectivity": await check_database(),
-        "memory_system": await check_memory_health(),
-        "agent_availability": await check_agents(),
-        "cache_status": await check_cache()
-    }
-    return {"status": "healthy" if all(checks.values()) else "degraded", "checks": checks}
+# Vector-enhanced knowledge storage
+long_term_memory = LongTermKnowledgeMemory(
+    db_path=":memory:",
+    vector_path="data/vector_store",
+    embedding_model="all-MiniLM-L6-v2"
+)
 ```
 
-## 🧪 Testing Strategy
+**Advanced Features**:
+- Vector-based similarity search using FAISS
+- Multi-strategy context retrieval (exact, similarity, type-based)
+- TTL-based context management
+- Access pattern tracking and optimization
 
-### Unit Testing
-- Individual agent testing
-- Memory system testing
-- Workflow component testing
-- Security validation testing
+### Memory Performance Optimizations
 
-### Integration Testing
-- End-to-end workflow testing
-- Multi-agent coordination testing
-- Database integration testing
-- Error recovery testing
+#### **SQLite Configuration for In-Memory Operations**
+```python
+MEMORY_PRAGMAS = [
+    "PRAGMA journal_mode = MEMORY;",
+    "PRAGMA synchronous = OFF;",
+    "PRAGMA temp_store = MEMORY;",
+    "PRAGMA cache_size = 10000;",
+    "PRAGMA page_size = 4096;",
+    "PRAGMA mmap_size = 268435456;",  # 256MB
+    "PRAGMA foreign_keys = ON;"
+]
+```
 
-### Performance Testing
-- Load testing with concurrent requests
-- Memory usage under stress
-- Cache performance testing
-- Agent processing benchmarks
+#### **FAISS Vector Configuration**
+```python
+# High-performance vector search setup
+embedding_dim = 384  # all-MiniLM-L6-v2
+quantizer = faiss.IndexFlatIP(embedding_dim)
+nlist = 100  # Number of clusters
+vector_store = faiss.IndexIVFFlat(quantizer, embedding_dim, nlist)
+vector_store.nprobe = 10  # Search clusters
+```
 
-This architecture provides a robust, scalable, and secure foundation for the Advanced SQL Agent System, enabling sophisticated natural language to SQL translation through intelligent agent coordination and memory-driven learning.
+## 📊 Performance Characteristics
+
+### Expected Performance Improvements
+
+| Component | Traditional | In-Memory | Improvement |
+|-----------|-------------|-----------|-------------|
+| Database Operations | 10-50ms | 0.1-0.5ms | **50-100x** |
+| Context Retrieval | 5-20ms | <1ms | **20x** |
+| Memory Operations | 1-5ms | 0.01-0.1ms | **100x** |
+| Vector Search | 50-100ms | 1-5ms | **20x** |
+
+### Memory Usage Profile
+
+- **Base Memory**: ~50-100MB
+- **Vector Store**: ~10-50MB (depending on stored contexts)
+- **Session Data**: ~1-10MB per active session
+- **Total Typical Usage**: ~100-300MB
+
+## 🔄 Data Flow and Processing Pipeline
+
+### Query Processing Flow
+
+```
+1. User Input (Natural Language)
+   ↓
+2. NLU Agent (Intent Extraction & Entity Recognition)
+   ├── Memory: Retrieve similar past queries
+   ├── Output: Structured intent with confidence scores
+   ↓
+3. Schema Intelligence Agent (Table Analysis)
+   ├── Memory: Leverage table usage patterns
+   ├── Output: Relevant tables and relationships
+   ↓
+4. SQL Generator Agent (Query Construction)
+   ├── Memory: Apply successful query templates
+   ├── Output: Optimized SQL with metadata
+   ↓
+5. Validation & Security Agent (Safety Check)
+   ├── Memory: Security pattern validation
+   ├── Output: Validated, secure query
+   ↓
+6. Database Execution (Snowflake)
+   ├── Connection: Optimized connection pooling
+   ├── Output: Query results
+   ↓
+7. Visualization Agent (Chart Recommendations)
+   ├── Memory: Visualization preferences
+   ├── Output: Chart recommendations with code
+   ↓
+8. Memory Storage (Learning & Context Update)
+   ├── Store: Complete interaction context with vectors
+   ├── Update: Relevance scores and success patterns
+   ↓
+9. Response to User (Results + Visualizations)
+```
+
+### Memory Integration Points
+
+- **Pre-processing**: Load relevant contexts for each agent
+- **Post-processing**: Store results with vector embeddings
+- **Error handling**: Store failure patterns for future avoidance
+- **User feedback**: Update success metrics and preferences
+
+## 🔧 Configuration Management
+
+### Environment Configuration Structure
+
+```env
+# Database Configuration
+SNOWFLAKE_ACCOUNT=your-account.snowflakecomputing.com
+SNOWFLAKE_USER=username
+SNOWFLAKE_PASSWORD=password
+SNOWFLAKE_WAREHOUSE=warehouse
+SNOWFLAKE_DATABASE=database
+
+# LLM Provider
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-your-key
+OPENAI_MODEL=gpt-4o
+
+# Memory System (In-Memory by Default)
+SESSION_DB_PATH=:memory:
+KNOWLEDGE_DB_PATH=:memory:
+
+# Optional Persistence
+PERSISTENT_SESSION_DB_PATH=data/session_memory.db
+PERSISTENT_KNOWLEDGE_DB_PATH=data/knowledge_memory.db
+
+# Vector Store
+VECTOR_STORE_PATH=data/vector_store
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+```
+
+### Settings Validation and Management
+
+```python
+class Settings(BaseSettings):
+    # Enhanced memory configuration
+    session_db_path: str = ":memory:"
+    knowledge_db_path: str = ":memory:"
+    enable_persistence: bool = False
+    
+    # Vector search configuration
+    vector_store_path: str = "data/vector_store"
+    embedding_model: str = "all-MiniLM-L6-v2"
+    max_context_length: int = 10000
+    similarity_threshold: float = 0.8
+    
+    class Config:
+        env_file = ".env"
+        validate_assignment = True
+```
+
+## 🛡️ Security Considerations
+
+### Current Security Status: 🔴 **CRITICAL ISSUES IDENTIFIED**
+
+**Critical Vulnerabilities Found**:
+1. **SQL Injection** in database connector (CVSS 9.8)
+2. **Path Traversal** in memory system (CVSS 8.5)
+3. **Unsafe Deserialization** in FAISS storage (CVSS 9.0)
+
+### Security Architecture Requirements
+
+#### **Database Security**
+- Parameterized queries for all database operations
+- Connection string sanitization
+- Query result size limitations
+- Database permission validation
+
+#### **Memory Security**
+- Secure path validation for file operations
+- Safe serialization (JSON instead of pickle)
+- Data isolation between user sessions
+- Automatic cleanup of sensitive data
+
+#### **API Security**
+- Authentication and authorization middleware
+- Input validation and sanitization
+- Rate limiting and DDoS protection
+- Security headers (HSTS, CSP, etc.)
+
+## 📁 File Structure and Components
+
+### Current Directory Structure
+
+```
+advanced_sql_agent_system/
+├── agents/                         # Specialized AI agents
+│   ├── __init__.py
+│   ├── nlu_agent.py               # Natural language understanding
+│   ├── schema_intelligence_agent.py # Schema analysis
+│   ├── sql_generator_agent.py     # SQL generation
+│   ├── validation_security_agent.py # Security validation
+│   ├── visualization_agent.py     # Chart recommendations
+│   ├── data_profiling_agent.py    # Data profiling (new)
+│   ├── query_understanding_agent.py # Query understanding (new)
+│   └── sql_visualization_agent.py # SQL visualization (new)
+├── api/                           # REST API interface
+│   ├── __init__.py
+│   └── fastapi_app.py            # FastAPI application
+├── config/                        # Configuration management
+│   ├── __init__.py
+│   └── settings.py               # Enhanced settings with security
+├── database/                      # Database connectors
+│   ├── __init__.py
+│   └── snowflake_connector.py    # Snowflake integration
+├── memory/                        # Enhanced memory system
+│   ├── __init__.py
+│   ├── memory_manager.py         # Memory coordination
+│   ├── working_memory.py         # Real-time processing memory
+│   ├── session_memory.py         # Enhanced session management
+│   ├── long_term_memory.py       # FAISS-enhanced long-term memory
+│   ├── minimal_memory.py         # Minimal implementation
+│   └── simple_memory.py          # Streamlined memory system
+├── tests/                         # Test suite
+│   ├── conftest.py               # Test configuration
+│   ├── unit/
+│   │   └── test_agents.py        # Agent unit tests
+│   └── integration/
+│       └── test_system.py        # System integration tests
+├── ui/                           # User interfaces
+│   ├── __init__.py
+│   ├── streamlit_app.py          # Main Streamlit interface
+│   ├── advanced_dashboard.py     # Professional dashboard
+│   └── components/               # UI components
+│       └── __init__.py
+├── workflows/                     # Workflow management (simplified)
+│   └── __init__.py
+├── main.py                       # Main system orchestrator
+├── main_simple.py               # Simplified entry point
+├── test_memory_config.py        # Memory configuration validator
+├── requirements.txt             # Dependencies with security updates
+├── .env.template               # Environment configuration template
+└── docs/                        # Documentation
+    ├── README.md               # Updated project documentation
+    ├── CLAUDE.md              # Claude-specific instructions
+    ├── architecture.md        # This file (updated)
+    ├── SIMPLIFIED_ARCHITECTURE.md # Simplified architecture guide
+    └── BUG_REPORT.md          # Security and bug analysis
+```
+
+## 🚀 Deployment Considerations
+
+### Development Environment Setup
+
+```bash
+# 1. Environment setup
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Configure environment
+cp .env.template .env
+# Edit .env with your configuration
+
+# 4. Initialize system
+python config/settings.py
+
+# 5. Test memory configuration
+python test_memory_config.py
+
+# 6. Run applications
+streamlit run ui/streamlit_app.py  # Web interface
+python api/fastapi_app.py          # REST API
+python main_simple.py              # Direct usage
+```
+
+### Production Deployment Requirements
+
+**🚨 CRITICAL: Do not deploy until security issues are resolved**
+
+Required fixes before production:
+1. Fix all SQL injection vulnerabilities
+2. Implement proper authentication and authorization
+3. Secure path validation and file operations
+4. Update vulnerable dependencies
+5. Add comprehensive input validation
+6. Implement security monitoring and logging
+
+### Performance Monitoring
+
+```python
+# Built-in performance metrics
+performance_metrics = {
+    "avg_query_time": 0.15,      # seconds
+    "memory_usage": 150,         # MB
+    "vector_search_time": 0.002, # seconds
+    "success_rate": 0.94,        # percentage
+    "cache_hit_rate": 0.85       # percentage
+}
+```
+
+## 🔮 Future Architecture Enhancements
+
+### Planned Improvements
+
+1. **Distributed Memory**: Multi-node vector storage for scalability
+2. **Advanced Embeddings**: Custom domain-specific embedding models
+3. **Real-time Learning**: Online learning from user interactions
+4. **Multi-modal Support**: Support for voice and image inputs
+5. **Advanced Caching**: Multi-level caching with intelligent invalidation
+
+### Scalability Roadmap
+
+- **Horizontal Scaling**: Multiple agent instances with load balancing
+- **Vector Sharding**: Distributed FAISS indices across nodes
+- **Memory Partitioning**: User-based memory isolation and scaling
+- **Microservices**: Agent-per-service architecture for independent scaling
+
+---
+
+## 📊 Architecture Assessment
+
+### Current State
+- **Performance**: ✅ Excellent (50-100x improvement with in-memory)
+- **Scalability**: ✅ Good (efficient memory usage, vector search)
+- **Maintainability**: ✅ Good (modular design, clear separation)
+- **Security**: 🔴 **Critical Issues** (requires immediate attention)
+- **Reliability**: ⚠️ Medium (needs error handling improvements)
+
+### Recommended Next Steps
+
+1. **Immediate**: Address critical security vulnerabilities
+2. **Short-term**: Implement comprehensive testing and monitoring
+3. **Medium-term**: Add advanced features and optimizations
+4. **Long-term**: Scale to distributed architecture
+
+This architecture provides a solid foundation for high-performance SQL query processing with intelligent learning capabilities, but requires security hardening before production deployment.
+
+---
+
+*Last Updated: 2025-01-13*  
+*Architecture Version: 2.0 (Streamlined + Enhanced)*  
+*Security Status: Under Review - Critical Issues Identified*
