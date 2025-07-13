@@ -413,5 +413,343 @@ class SQLGenerationWorkflow:
         required_components = ["generated_sql", "query_results"]
         return all(state.get(component) for component in required_components)
     
-    # Additional node implementations would go here...
-    # (schema_analysis_node, sql_generation_node, etc.)
+    async def _schema_analysis_node(self, state: SQLAgentState) -> SQLAgentState:
+        """Performs schema analysis with enhanced data pattern detection."""
+        
+        try:
+            schema_result = await self.agents["schema"].analyze_schema_requirements(
+                entities=state.get("entities_extracted", []),
+                intent=state.get("query_intent", {}),
+                context={
+                    "user_id": state["user_id"],
+                    "session_id": state["session_id"],
+                    "memory_context": state.get("memory_context", {})
+                }
+            )
+            
+            # Update memory with schema analysis
+            await self.memory_system.update_memory_from_processing(
+                session_id=state["session_id"],
+                agent_name="schema_analyzer",
+                processing_data=schema_result.__dict__,
+                success=True
+            )
+            
+            return {
+                **state,
+                "relevant_tables": schema_result.relevant_tables,
+                "table_relationships": schema_result.table_relationships,
+                "column_metadata": schema_result.column_metadata,
+                "sample_data": schema_result.sample_data,
+                "column_analysis": schema_result.column_analysis,
+                "data_patterns": schema_result.data_patterns,
+                "filtering_suggestions": schema_result.filtering_suggestions,
+                "schema_confidence": schema_result.confidence_score,
+                "optimization_suggestions": schema_result.optimization_suggestions,
+                "current_agent": "schema_analyzer",
+                "completed_agents": [*state.get("completed_agents", []), "schema_analyzer"],
+                "processing_stage": "schema_complete"
+            }
+            
+        except Exception as e:
+            return {
+                **state,
+                "error_history": [
+                    *state.get("error_history", []),
+                    {
+                        "agent": "schema_analyzer",
+                        "error": str(e),
+                        "timestamp": datetime.now().isoformat(),
+                        "recovery_strategy": "schema_error"
+                    }
+                ],
+                "current_agent": "error_handler"
+            }
+    
+    async def _sql_generation_node(self, state: SQLAgentState) -> SQLAgentState:
+        """Generates SQL with visualization metadata."""
+        
+        try:
+            sql_result = await self.agents["sql_generator"].generate_sql(
+                intent=state.get("query_intent", {}),
+                schema_context={
+                    "relevant_tables": state.get("relevant_tables", []),
+                    "table_relationships": state.get("table_relationships", {}),
+                    "column_metadata": state.get("column_metadata", {}),
+                    "filtering_suggestions": state.get("filtering_suggestions", {})
+                },
+                entities=state.get("entities_extracted", [])
+            )
+            
+            # Update memory with SQL generation
+            await self.memory_system.update_memory_from_processing(
+                session_id=state["session_id"],
+                agent_name="sql_generator",
+                processing_data=sql_result,
+                success=True
+            )
+            
+            return {
+                **state,
+                "generated_sql": sql_result.get("generated_sql"),
+                "generation_strategy": sql_result.get("generation_strategy"),
+                "sql_confidence": sql_result.get("confidence"),
+                "sql_alternatives": sql_result.get("alternatives", []),
+                "visualization_metadata": sql_result.get("visualization_metadata", {}),
+                "current_agent": "sql_generator",
+                "completed_agents": [*state.get("completed_agents", []), "sql_generator"],
+                "processing_stage": "sql_complete"
+            }
+            
+        except Exception as e:
+            return {
+                **state,
+                "error_history": [
+                    *state.get("error_history", []),
+                    {
+                        "agent": "sql_generator",
+                        "error": str(e),
+                        "timestamp": datetime.now().isoformat(),
+                        "recovery_strategy": "regenerate"
+                    }
+                ],
+                "current_agent": "error_handler"
+            }
+    
+    async def _validation_node(self, state: SQLAgentState) -> SQLAgentState:
+        """Validates SQL query for security and performance."""
+        
+        try:
+            validation_result = await self.agents["validator"].validate_sql(
+                sql=state.get("generated_sql", ""),
+                context={
+                    "query_intent": state.get("query_intent", {}),
+                    "entities": state.get("entities_extracted", []),
+                    "schema_context": {
+                        "relevant_tables": state.get("relevant_tables", []),
+                        "table_relationships": state.get("table_relationships", {})
+                    }
+                }
+            )
+            
+            # Update memory with validation results
+            await self.memory_system.update_memory_from_processing(
+                session_id=state["session_id"],
+                agent_name="validator",
+                processing_data=validation_result,
+                success=validation_result.get("is_valid", False)
+            )
+            
+            return {
+                **state,
+                "validation_results": validation_result,
+                "is_sql_valid": validation_result.get("is_valid", False),
+                "security_passed": validation_result.get("security_passed", False),
+                "validation_recommendations": validation_result.get("recommendations", []),
+                "current_agent": "validator",
+                "completed_agents": [*state.get("completed_agents", []), "validator"],
+                "processing_stage": "validation_complete"
+            }
+            
+        except Exception as e:
+            return {
+                **state,
+                "error_history": [
+                    *state.get("error_history", []),
+                    {
+                        "agent": "validator",
+                        "error": str(e),
+                        "timestamp": datetime.now().isoformat(),
+                        "recovery_strategy": "validation_failed"
+                    }
+                ],
+                "current_agent": "error_handler"
+            }
+    
+    async def _execution_node(self, state: SQLAgentState) -> SQLAgentState:
+        """Executes validated SQL query."""
+        
+        try:
+            sql = state.get("generated_sql", "")
+            
+            if not sql:
+                raise Exception("No SQL query to execute")
+            
+            # Execute query using database connector
+            query_results = await self.database_connector.execute_query(sql)
+            
+            return {
+                **state,
+                "query_results": query_results,
+                "execution_status": "success",
+                "execution_timestamp": datetime.now().isoformat(),
+                "current_agent": "executor",
+                "completed_agents": [*state.get("completed_agents", []), "executor"],
+                "processing_stage": "execution_complete"
+            }
+            
+        except Exception as e:
+            return {
+                **state,
+                "error_history": [
+                    *state.get("error_history", []),
+                    {
+                        "agent": "executor",
+                        "error": str(e),
+                        "timestamp": datetime.now().isoformat(),
+                        "recovery_strategy": "execution_failed"
+                    }
+                ],
+                "execution_status": "failed",
+                "current_agent": "error_handler"
+            }
+    
+    async def _visualization_node(self, state: SQLAgentState) -> SQLAgentState:
+        """Creates visualization recommendations and code."""
+        
+        try:
+            viz_result = await self.agents["visualizer"].analyze_and_recommend(
+                query_results=state.get("query_results", []),
+                query_intent=state.get("query_intent", {}),
+                schema_context={
+                    "relevant_tables": state.get("relevant_tables", []),
+                    "column_metadata": state.get("column_metadata", {}),
+                    "data_patterns": state.get("data_patterns", {})
+                },
+                entities=state.get("entities_extracted", [])
+            )
+            
+            # Update memory with visualization results
+            await self.memory_system.update_memory_from_processing(
+                session_id=state["session_id"],
+                agent_name="visualizer",
+                processing_data=viz_result.__dict__,
+                success=True
+            )
+            
+            return {
+                **state,
+                "visualization_recommendations": viz_result.recommended_charts,
+                "visualization_insights": viz_result.data_insights,
+                "dashboard_layout": viz_result.dashboard_layout,
+                "interactive_features": viz_result.interactive_features,
+                "visualization_confidence": viz_result.confidence_score,
+                "current_agent": "visualizer",
+                "completed_agents": [*state.get("completed_agents", []), "visualizer"],
+                "processing_stage": "visualization_complete"
+            }
+            
+        except Exception as e:
+            return {
+                **state,
+                "error_history": [
+                    *state.get("error_history", []),
+                    {
+                        "agent": "visualizer",
+                        "error": str(e),
+                        "timestamp": datetime.now().isoformat(),
+                        "recovery_strategy": "visualization_failed"
+                    }
+                ],
+                "current_agent": "error_handler"
+            }
+    
+    async def _error_recovery_node(self, state: SQLAgentState) -> SQLAgentState:
+        """Handles errors and provides recovery strategies."""
+        
+        error_history = state.get("error_history", [])
+        
+        if not error_history:
+            return {**state, "current_agent": "supervisor"}
+        
+        latest_error = error_history[-1]
+        recovery_strategy = latest_error.get("recovery_strategy", "unknown")
+        
+        # Increment iteration count for retry logic
+        iteration_count = state.get("iteration_count", 0) + 1
+        
+        return {
+            **state,
+            "iteration_count": iteration_count,
+            "recovery_strategy": recovery_strategy,
+            "error_context": latest_error,
+            "current_agent": "supervisor",
+            "processing_stage": "error_recovery"
+        }
+    
+    async def _quality_assessment_node(self, state: SQLAgentState) -> SQLAgentState:
+        """Assesses overall quality of results."""
+        
+        # Calculate overall quality score
+        quality_factors = {
+            "nlu_confidence": state.get("confidence_scores", {}).get("overall", 0),
+            "schema_confidence": state.get("schema_confidence", 0),
+            "sql_confidence": state.get("sql_confidence", 0),
+            "validation_passed": 1.0 if state.get("is_sql_valid", False) else 0.0,
+            "execution_success": 1.0 if state.get("execution_status") == "success" else 0.0,
+            "visualization_confidence": state.get("visualization_confidence", 0)
+        }
+        
+        overall_score = sum(quality_factors.values()) / len(quality_factors)
+        
+        quality_assessment = {
+            "overall_score": overall_score,
+            "quality_factors": quality_factors,
+            "recommendations": [],
+            "success": overall_score >= 0.7
+        }
+        
+        # Add quality recommendations
+        if quality_factors["nlu_confidence"] < 0.6:
+            quality_assessment["recommendations"].append("Consider rephrasing query for better understanding")
+        
+        if quality_factors["schema_confidence"] < 0.6:
+            quality_assessment["recommendations"].append("Query may benefit from more specific table/column references")
+        
+        if not quality_factors["validation_passed"]:
+            quality_assessment["recommendations"].append("SQL validation failed - query needs refinement")
+        
+        return {
+            **state,
+            "quality_assessment": quality_assessment,
+            "overall_success": quality_assessment["success"],
+            "current_agent": "quality_assessor",
+            "completed_agents": [*state.get("completed_agents", []), "quality_assessor"],
+            "processing_stage": "quality_complete"
+        }
+    
+    async def _supervisor_node(self, state: SQLAgentState) -> SQLAgentState:
+        """High-level supervision and coordination."""
+        
+        completed_agents = state.get("completed_agents", [])
+        error_history = state.get("error_history", [])
+        iteration_count = state.get("iteration_count", 0)
+        
+        supervision_decision = {
+            "action": "continue_processing",
+            "rationale": "Normal processing flow",
+            "next_agent": None
+        }
+        
+        # Check for completion
+        required_agents = ["nlu_processor", "schema_analyzer", "sql_generator", "validator", "executor"]
+        if all(agent in completed_agents for agent in required_agents):
+            supervision_decision["action"] = "complete"
+            supervision_decision["rationale"] = "All required processing completed successfully"
+        
+        # Check for excessive errors
+        elif len(error_history) >= 3:
+            supervision_decision["action"] = "escalate_error"
+            supervision_decision["rationale"] = "Too many errors encountered"
+        
+        # Check for excessive iterations
+        elif iteration_count > 5:
+            supervision_decision["action"] = "escalate_error"
+            supervision_decision["rationale"] = "Maximum iterations exceeded"
+        
+        return {
+            **state,
+            "supervision_decision": supervision_decision,
+            "current_agent": "supervisor",
+            "processing_stage": "supervised"
+        }

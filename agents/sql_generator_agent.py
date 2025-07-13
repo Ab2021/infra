@@ -57,12 +57,18 @@ class SQLGeneratorAgent:
             # Update memory with generation results
             await self._update_memory(intent, entities, optimized_sql, confidence)
             
+            # Generate visualization metadata
+            visualization_metadata = self._generate_visualization_metadata(
+                optimized_sql, schema_context, intent
+            )
+            
             return {
                 "generated_sql": optimized_sql,
                 "generation_strategy": generation_strategy,
                 "confidence": confidence,
                 "alternatives": await self._generate_alternatives(optimized_sql),
-                "optimization_applied": True
+                "optimization_applied": True,
+                "visualization_metadata": visualization_metadata
             }
             
         except Exception as e:
@@ -221,6 +227,227 @@ class SQLGeneratorAgent:
                             break
         
         return replacements
+    
+    def _generate_visualization_metadata(self, sql: str, schema_context: Dict, intent: Dict) -> Dict:
+        """Generates visualization metadata to guide chart creation."""
+        
+        metadata = {
+            "recommended_charts": [],
+            "x_axis_suggestions": [],
+            "y_axis_suggestions": [],
+            "chart_priorities": {},
+            "data_characteristics": {},
+            "interactive_features": []
+        }
+        
+        # Analyze SQL to determine data structure
+        sql_upper = sql.upper()
+        
+        # Extract SELECT columns to understand output structure
+        select_columns = self._extract_select_columns(sql)
+        aggregate_functions = self._detect_aggregate_functions(sql)
+        has_group_by = "GROUP BY" in sql_upper
+        has_order_by = "ORDER BY" in sql_upper
+        has_date_functions = any(func in sql_upper for func in ["DATE", "YEAR", "MONTH", "DAY", "DATEPART"])
+        
+        # Determine data characteristics
+        metadata["data_characteristics"] = {
+            "has_aggregations": bool(aggregate_functions),
+            "has_grouping": has_group_by,
+            "has_sorting": has_order_by,
+            "has_temporal_data": has_date_functions,
+            "column_count": len(select_columns),
+            "likely_numeric_columns": self._identify_numeric_columns(select_columns, aggregate_functions),
+            "likely_categorical_columns": self._identify_categorical_columns(select_columns, has_group_by)
+        }
+        
+        # Generate chart recommendations based on query structure
+        recommendations = self._recommend_charts_from_sql_structure(
+            select_columns, aggregate_functions, has_group_by, has_date_functions, intent
+        )
+        metadata["recommended_charts"] = recommendations
+        
+        # Suggest axes
+        if select_columns:
+            if has_group_by and aggregate_functions:
+                # GROUP BY column(s) for X-axis, aggregated values for Y-axis
+                metadata["x_axis_suggestions"] = select_columns[:2]  # First few columns likely categorical
+                metadata["y_axis_suggestions"] = [col for col in select_columns if any(agg in col.upper() for agg in aggregate_functions)]
+            elif has_date_functions:
+                # Date/time column for X-axis
+                date_columns = [col for col in select_columns if any(date_word in col.lower() for date_word in ["date", "time", "year", "month"])]
+                metadata["x_axis_suggestions"] = date_columns
+                metadata["y_axis_suggestions"] = [col for col in select_columns if col not in date_columns]
+            else:
+                # First column X-axis, others Y-axis
+                metadata["x_axis_suggestions"] = select_columns[:1]
+                metadata["y_axis_suggestions"] = select_columns[1:]
+        
+        # Chart priorities based on query intent
+        if intent.get("output_preference") == "chart":
+            metadata["chart_priorities"]["user_requested"] = 1.0
+        
+        if intent.get("primary_action") == "aggregate":
+            metadata["chart_priorities"]["bar_chart"] = 0.9
+            metadata["chart_priorities"]["pie_chart"] = 0.7
+        
+        if intent.get("temporal_scope"):
+            metadata["chart_priorities"]["line_chart"] = 0.9
+            metadata["chart_priorities"]["area_chart"] = 0.7
+        
+        # Interactive features suggestions
+        if len(select_columns) > 2:
+            metadata["interactive_features"].append("filter_controls")
+        
+        if has_date_functions:
+            metadata["interactive_features"].append("date_range_selector")
+        
+        if metadata["data_characteristics"]["likely_categorical_columns"]:
+            metadata["interactive_features"].append("category_filter")
+        
+        return metadata
+    
+    def _extract_select_columns(self, sql: str) -> List[str]:
+        """Extracts column names from SELECT clause."""
+        try:
+            # Simple extraction - could be enhanced with proper SQL parsing
+            sql_upper = sql.upper()
+            select_start = sql_upper.find("SELECT") + 6
+            from_start = sql_upper.find("FROM")
+            
+            if select_start > 5 and from_start > select_start:
+                select_clause = sql[select_start:from_start].strip()
+                
+                # Remove common SQL keywords and clean up
+                select_clause = select_clause.replace("\n", " ").replace("\t", " ")
+                columns = [col.strip() for col in select_clause.split(",")]
+                
+                # Clean column names (remove aliases, functions, etc.)
+                cleaned_columns = []
+                for col in columns:
+                    # Extract actual column name (handle aliases)
+                    if " AS " in col.upper():
+                        col = col.split(" AS ")[0].strip()
+                    elif " " in col and not any(func in col.upper() for func in ["SUM", "COUNT", "AVG", "MAX", "MIN"]):
+                        col = col.split(" ")[-1].strip()
+                    
+                    # Remove table prefixes
+                    if "." in col:
+                        col = col.split(".")[-1]
+                    
+                    cleaned_columns.append(col)
+                
+                return cleaned_columns[:10]  # Limit to prevent issues
+        except:
+            pass
+        
+        return []
+    
+    def _detect_aggregate_functions(self, sql: str) -> List[str]:
+        """Detects aggregate functions used in the query."""
+        sql_upper = sql.upper()
+        aggregate_functions = []
+        
+        common_aggregates = ["SUM", "COUNT", "AVG", "MAX", "MIN", "STDDEV", "VARIANCE"]
+        
+        for agg in common_aggregates:
+            if f"{agg}(" in sql_upper:
+                aggregate_functions.append(agg)
+        
+        return aggregate_functions
+    
+    def _identify_numeric_columns(self, columns: List[str], aggregates: List[str]) -> List[str]:
+        """Identifies likely numeric columns based on names and aggregations."""
+        numeric_indicators = ["amount", "price", "cost", "total", "sum", "count", "avg", "value", "revenue", "sales"]
+        
+        numeric_columns = []
+        
+        for col in columns:
+            col_lower = col.lower()
+            
+            # If column has aggregation, likely numeric
+            if any(agg.lower() in col_lower for agg in aggregates):
+                numeric_columns.append(col)
+            # If column name suggests numeric data
+            elif any(indicator in col_lower for indicator in numeric_indicators):
+                numeric_columns.append(col)
+        
+        return numeric_columns
+    
+    def _identify_categorical_columns(self, columns: List[str], has_group_by: bool) -> List[str]:
+        """Identifies likely categorical columns."""
+        categorical_indicators = ["name", "category", "type", "status", "region", "country", "city", "department"]
+        
+        categorical_columns = []
+        
+        for col in columns:
+            col_lower = col.lower()
+            
+            # If query has GROUP BY, first columns likely categorical
+            if has_group_by and len(categorical_columns) < 2:
+                categorical_columns.append(col)
+            # If column name suggests categorical data
+            elif any(indicator in col_lower for indicator in categorical_indicators):
+                categorical_columns.append(col)
+        
+        return categorical_columns
+    
+    def _recommend_charts_from_sql_structure(self, columns: List[str], aggregates: List[str], 
+                                           has_group_by: bool, has_dates: bool, 
+                                           intent: Dict) -> List[Dict]:
+        """Recommends chart types based on SQL structure analysis."""
+        recommendations = []
+        
+        # Bar chart for aggregated categorical data
+        if has_group_by and aggregates:
+            recommendations.append({
+                "chart_type": "bar",
+                "priority": 0.9,
+                "rationale": "Aggregated data with grouping ideal for bar charts",
+                "x_axis": columns[0] if columns else None,
+                "y_axis": columns[1] if len(columns) > 1 else None
+            })
+        
+        # Line chart for time series data
+        if has_dates and len(columns) >= 2:
+            recommendations.append({
+                "chart_type": "line",
+                "priority": 0.85,
+                "rationale": "Temporal data perfect for trend visualization",
+                "x_axis": columns[0],
+                "y_axis": columns[1]
+            })
+        
+        # Pie chart for categorical composition
+        if has_group_by and len(columns) == 2:
+            recommendations.append({
+                "chart_type": "pie",
+                "priority": 0.7,
+                "rationale": "Two-column grouped data suitable for composition chart",
+                "x_axis": columns[0],
+                "y_axis": columns[1]
+            })
+        
+        # Scatter plot for correlation analysis
+        if len(columns) >= 2 and not has_group_by:
+            recommendations.append({
+                "chart_type": "scatter",
+                "priority": 0.6,
+                "rationale": "Multiple numeric columns good for correlation analysis",
+                "x_axis": columns[0],
+                "y_axis": columns[1]
+            })
+        
+        # Table view as fallback
+        recommendations.append({
+            "chart_type": "table",
+            "priority": 0.5,
+            "rationale": "Tabular display suitable for any data structure",
+            "x_axis": None,
+            "y_axis": None
+        })
+        
+        return sorted(recommendations, key=lambda x: x["priority"], reverse=True)
     
     async def _update_memory(self, intent: Dict, entities: List[Dict], sql: str, confidence: float):
         """Updates memory with generation results."""
