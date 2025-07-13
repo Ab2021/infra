@@ -8,8 +8,23 @@ import logging
 from typing import Dict, List, Optional, Literal
 from datetime import datetime
 
-from langgraph.graph import StateGraph, START, END
-from langgraph.types import Command
+try:
+    from langgraph.graph import StateGraph, START, END
+    from langgraph.types import Command
+except ImportError:
+    # Fallback for different LangGraph versions
+    from langgraph.graph import StateGraph
+    try:
+        from langgraph.constants import START, END
+    except ImportError:
+        START = "__start__"
+        END = "__end__"
+    
+    # Command may not be available in all versions
+    try:
+        from langgraph.types import Command
+    except ImportError:
+        Command = None
 
 from .state_schema import SQLAgentState, RoutingDecision, create_initial_state
 from ..agents.nlu_agent import NLUAgent

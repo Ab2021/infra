@@ -5,7 +5,13 @@ Centralized configuration management with environment variable support
 
 import os
 from typing import Optional, Dict, Any
-from pydantic import BaseSettings, Field
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:
+    # Fallback for older pydantic versions
+    from pydantic import BaseSettings
+
+from pydantic import Field
 from pathlib import Path
 
 class Settings(BaseSettings):
@@ -37,14 +43,18 @@ class Settings(BaseSettings):
     
     # === Memory System Settings ===
     memory_backend: str = Field(default="sqlite", description="Memory storage backend")
-    session_db_path: str = Field(default="data/session_memory.db", description="SQLite path for session memory")
+    session_db_path: str = Field(default=":memory:", description="SQLite path for session memory (use :memory: for in-memory)")
     knowledge_db_path: str = Field(default="data/knowledge_memory.db", description="SQLite path for knowledge memory")
-    redis_url: Optional[str] = Field(default="redis://localhost:6379", description="Redis URL for caching")
+    use_redis: bool = Field(default=False, description="Enable Redis caching (optional)")
+    redis_url: Optional[str] = Field(default=None, description="Redis URL for caching (optional)")
     
     # === Vector Store Settings ===
     vector_store_provider: str = Field(default="faiss", description="Vector store provider")
     vector_store_path: str = Field(default="./data/vector_store", description="Vector store data path")
-    embedding_model: str = Field(default="all-MiniLM-L6-v2", description="Sentence transformer embedding model")
+    embedding_model_path: Optional[str] = Field(default=None, description="Local path to embedding model (optional)")
+    embedding_model_name: str = Field(default="all-MiniLM-L6-v2", description="Embedding model name if not using local path")
+    enable_vector_search: bool = Field(default=False, description="Enable vector similarity search (requires embeddings)")
+    vector_similarity_threshold: float = Field(default=0.8, description="Minimum similarity threshold for vector search")
     
     # === Performance Settings ===
     max_concurrent_queries: int = Field(default=10, description="Maximum concurrent queries")
