@@ -5,11 +5,18 @@
 Comprehensive security and bug analysis conducted on the Advanced SQL Agent System codebase. **CRITICAL SECURITY VULNERABILITIES FOUND** requiring immediate attention before any production deployment.
 
 ### Risk Assessment
-- **Total Issues Found**: 72 issues across multiple categories
+- **Total Issues Found**: 80 issues across multiple categories  
 - **Critical Vulnerabilities**: 3 (SQL injection, path traversal, unsafe deserialization)
-- **High Priority Issues**: 20 (authentication, memory leaks, async errors)
+- **High Priority Issues**: 28 (authentication, memory leaks, async errors, missing modules)
 - **Medium Priority Issues**: 31 (input validation, race conditions, configuration)
 - **Low Priority Issues**: 18 (optimization, logging, monitoring)
+
+### ⚠️ **NEW BUGS DISCOVERED (2025-07-13 Testing Session)**
+- **Syntax Errors**: Multiple escaped quote issues in session_memory.py
+- **Dependency Issues**: Missing/incompatible library versions  
+- **Runtime Errors**: AsyncIO event loop conflicts
+- **Module Import Errors**: Missing workflow modules
+- **Unicode Encoding Issues**: Windows compatibility problems
 
 ### Security Rating: 🔴 **CRITICAL** - Do not deploy to production
 
@@ -384,6 +391,176 @@ snowflake-connector-python>=3.6.0
 3. **Testing** - Automated security tests
 4. **Documentation** - Security guidelines
 5. **Code Review** - Security-focused reviews
+
+---
+
+## 🆕 RECENTLY DISCOVERED BUGS (2025-07-13)
+
+### 17. Python Syntax Errors in Session Memory
+
+**Severity: CRITICAL**
+
+**Location**: `memory/session_memory.py`  
+- Lines 148, 155, 159, 163, 169, 175, 178, 213-269: Escaped quotes causing syntax errors
+
+**Buggy Code**:
+```python
+# Lines with syntax errors due to escaped quotes
+if not self.enable_persistence or self.db_path != \":memory:\":  # SYNTAX ERROR
+cursor = await source_db.execute(\"SELECT name FROM sqlite_master WHERE type='table'\")  # SYNTAX ERROR
+```
+
+**Impact**: Complete system failure - code won't run
+
+**Status**: ✅ FIXED - Corrected quote escaping issues
+
+### 18. Dependency Version Incompatibilities  
+
+**Severity: HIGH**
+
+**Location**: `requirements.txt`
+- Line 5: `langgraph==0.0.62` - Version doesn't exist
+- Missing dependencies cause import failures
+
+**Error**:
+```
+ERROR: Could not find a version that satisfies the requirement langgraph==0.0.62
+```
+
+**Impact**: System cannot be installed or run
+
+**Fix Required**:
+```txt
+# Replace with available version
+langgraph>=0.0.8  # Use available version
+```
+
+### 19. AsyncIO Event Loop Conflicts
+
+**Severity: CRITICAL**
+
+**Location**: `memory/simple_memory.py`
+- Line 65: `asyncio.run()` called from within async context
+- Line 48: Constructor calls async methods synchronously
+
+**Error**:
+```
+RuntimeError: asyncio.run() cannot be called from a running event loop
+```
+
+**Buggy Code**:
+```python
+def _setup_databases(self):
+    try:
+        asyncio.run(self._create_tables())  # ERROR: Already in async context
+```
+
+**Impact**: Memory system initialization fails
+
+**Fix Required**:
+```python
+async def _setup_databases(self):
+    try:
+        await self._create_tables()  # Correct async usage
+```
+
+### 20. Missing Workflow Modules
+
+**Severity: HIGH**
+
+**Location**: `main.py`
+- Line 20: Import error for `workflows.sql_workflow`
+- Missing critical workflow implementation
+
+**Error**:
+```
+ModuleNotFoundError: No module named 'workflows.sql_workflow'
+```
+
+**Impact**: Main system cannot start
+
+**Available Files**: Only `workflows/simplified_langgraph_workflow.py` exists
+
+**Fix Required**: Create missing sql_workflow module or update imports
+
+### 21. Database Table Creation Failures
+
+**Severity: CRITICAL**
+
+**Location**: `memory/session_memory.py`
+- Database tables not created during initialization
+- SessionMemory fails with "no such table: user_sessions"
+
+**Error**:
+```
+ERROR: no such table: user_sessions
+```
+
+**Impact**: Memory system completely non-functional
+
+**Root Cause**: AsyncIO issues prevent proper table creation
+
+### 22. Unicode Encoding Issues on Windows
+
+**Severity: MEDIUM**
+
+**Location**: `main_simple.py`
+- Lines 506, 516: Unicode emoji characters cause encoding errors on Windows
+
+**Error**:
+```
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f4a5'
+```
+
+**Impact**: Application crashes with unicode output on Windows
+
+**Fix Required**:
+```python
+# Add encoding handling for Windows
+import sys
+if sys.platform == "win32":
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer)
+```
+
+### 23. Missing Dependencies for API/UI
+
+**Severity: HIGH**
+
+**Location**: Multiple files
+- `api/fastapi_app.py`: Missing fastapi, uvicorn
+- `ui/streamlit_app.py`: Missing streamlit, plotly  
+- Import failures prevent API and UI from running
+
+**Error**:
+```
+ModuleNotFoundError: No module named 'fastapi'
+ModuleNotFoundError: No module named 'streamlit'  
+ModuleNotFoundError: No module named 'plotly'
+```
+
+**Impact**: Web interface and API completely non-functional
+
+**Status**: ✅ PARTIALLY FIXED - Dependencies installed but import errors remain
+
+### 24. Configuration Validation Errors
+
+**Severity: MEDIUM**
+
+**Location**: `config/settings.py`
+- Pydantic settings validation fails without environment variables
+- Missing required Snowflake configuration
+
+**Error**:
+```
+ValidationError: 5 validation errors for Settings
+snowflake_account: Field required
+snowflake_user: Field required
+```
+
+**Impact**: System cannot initialize without proper .env file
+
+**Status**: ✅ FIXED - Created test .env file
 
 ---
 

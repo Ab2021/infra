@@ -144,39 +144,39 @@ class SessionMemory:
             asyncio.run(self._load_from_persistent())
     
     async def _load_from_persistent(self):
-        \"\"\"Load data from persistent storage to in-memory database\"\"\"
-        if not self.enable_persistence or self.db_path != \":memory:\":
+        """Load data from persistent storage to in-memory database"""
+        if not self.enable_persistence or self.db_path != ":memory:":
             return
             
         try:
             async with aiosqlite.connect(self.persistent_path) as source_db:
                 async with aiosqlite.connect(self.db_path) as target_db:
                     # Copy data from persistent to in-memory
-                    cursor = await source_db.execute(\"SELECT name FROM sqlite_master WHERE type='table'\")
+                    cursor = await source_db.execute("SELECT name FROM sqlite_master WHERE type='table'")
                     tables = await cursor.fetchall()
                     
                     for (table_name,) in tables:
-                        cursor = await source_db.execute(f\"SELECT * FROM {table_name}\")
+                        cursor = await source_db.execute(f"SELECT * FROM {table_name}")
                         rows = await cursor.fetchall()
                         
                         if rows:
-                            cursor = await source_db.execute(f\"PRAGMA table_info({table_name})\")
+                            cursor = await source_db.execute(f"PRAGMA table_info({table_name})")
                             columns = await cursor.fetchall()
                             column_names = [col[1] for col in columns]
                             placeholders = ','.join(['?' for _ in column_names])
                             
                             await target_db.executemany(
-                                f\"INSERT OR REPLACE INTO {table_name} VALUES ({placeholders})\", 
+                                f"INSERT OR REPLACE INTO {table_name} VALUES ({placeholders})", 
                                 rows
                             )
                     
                     await target_db.commit()
         except Exception as e:
-            self.logger.warning(f\"Failed to load from persistent storage: {e}\")
+            self.logger.warning(f"Failed to load from persistent storage: {e}")
     
     async def save_to_persistent(self):
-        \"\"\"Save in-memory data to persistent storage\"\"\"
-        if not self.enable_persistence or self.db_path != \":memory:\":
+        """Save in-memory data to persistent storage"""
+        if not self.enable_persistence or self.db_path != ":memory:":
             return
             
         try:
@@ -186,37 +186,37 @@ class SessionMemory:
                     await self._create_tables_async(target_db)
                     
                     # Copy data from in-memory to persistent
-                    cursor = await source_db.execute(\"SELECT name FROM sqlite_master WHERE type='table'\")
+                    cursor = await source_db.execute("SELECT name FROM sqlite_master WHERE type='table'")
                     tables = await cursor.fetchall()
                     
                     for (table_name,) in tables:
-                        cursor = await source_db.execute(f\"SELECT * FROM {table_name}\")
+                        cursor = await source_db.execute(f"SELECT * FROM {table_name}")
                         rows = await cursor.fetchall()
                         
                         if rows:
-                            cursor = await source_db.execute(f\"PRAGMA table_info({table_name})\")
+                            cursor = await source_db.execute(f"PRAGMA table_info({table_name})")
                             columns = await cursor.fetchall()
                             column_names = [col[1] for col in columns]
                             placeholders = ','.join(['?' for _ in column_names])
                             
                             await target_db.executemany(
-                                f\"INSERT OR REPLACE INTO {table_name} VALUES ({placeholders})\", 
+                                f"INSERT OR REPLACE INTO {table_name} VALUES ({placeholders})", 
                                 rows
                             )
                     
                     await target_db.commit()
         except Exception as e:
-            self.logger.error(f\"Failed to save to persistent storage: {e}\")
+            self.logger.error(f"Failed to save to persistent storage: {e}")
     
     async def _create_tables_async(self, db):
-        \"\"\"Create tables using async connection\"\"\"
-        await db.execute(\"PRAGMA foreign_keys = ON\")
-        await db.execute(\"PRAGMA journal_mode = WAL\")
-        await db.execute(\"PRAGMA synchronous = NORMAL\")
-        await db.execute(\"PRAGMA temp_store = MEMORY\")
+        """Create tables using async connection"""
+        await db.execute("PRAGMA foreign_keys = ON")
+        await db.execute("PRAGMA journal_mode = WAL")
+        await db.execute("PRAGMA synchronous = NORMAL")
+        await db.execute("PRAGMA temp_store = MEMORY")
         
         # Create all tables
-        await db.execute(\"\"\"
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS user_sessions (
                 session_id TEXT PRIMARY KEY,
                 user_id TEXT NOT NULL,
@@ -225,9 +225,9 @@ class SessionMemory:
                 status TEXT DEFAULT 'active',
                 metadata TEXT
             )
-        \"\"\")
+        """)
         
-        await db.execute(\"\"\"
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS conversation_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT NOT NULL,
@@ -239,18 +239,18 @@ class SessionMemory:
                 metadata TEXT,
                 FOREIGN KEY (session_id) REFERENCES user_sessions(session_id)
             )
-        \"\"\")
+        """)
         
-        await db.execute(\"\"\"
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS user_preferences (
                 user_id TEXT PRIMARY KEY,
                 preferences TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        \"\"\")
+        """)
         
-        await db.execute(\"\"\"
+        await db.execute("""
             CREATE TABLE IF NOT EXISTS processing_results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT NOT NULL,
@@ -260,13 +260,13 @@ class SessionMemory:
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (session_id) REFERENCES user_sessions(session_id)
             )
-        \"\"\")
+        """)
         
         # Create indexes
-        await db.execute(\"CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON user_sessions(user_id)\")
-        await db.execute(\"CREATE INDEX IF NOT EXISTS idx_history_session_id ON conversation_history(session_id)\")
-        await db.execute(\"CREATE INDEX IF NOT EXISTS idx_history_user_id ON conversation_history(user_id)\")
-        await db.execute(\"CREATE INDEX IF NOT EXISTS idx_results_session_id ON processing_results(session_id)\")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON user_sessions(user_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_history_session_id ON conversation_history(session_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_history_user_id ON conversation_history(user_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_results_session_id ON processing_results(session_id)")
     
     async def get_or_create_session(self, user_id: str, session_id: str) -> Dict:
         """
