@@ -94,6 +94,12 @@ class WorkingMemory:
             session_id: Session to update (if None, updates all active sessions)
         """
         
+        # Input validation
+        if not agent_name or not isinstance(agent_name, str):
+            raise ValueError("agent_name must be a non-empty string")
+        if not isinstance(update_data, dict):
+            raise ValueError("update_data must be a dictionary")
+        
         timestamp = datetime.now().isoformat()
         
         # Determine which sessions to update

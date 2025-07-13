@@ -25,8 +25,13 @@ class MemoryManager:
         
         # Initialize memory tiers
         self.working_memory = WorkingMemory()
-        self.session_memory = SessionMemory(config.session_storage)
-        self.knowledge_memory = LongTermKnowledgeMemory(config.knowledge_storage)
+        self.session_memory = SessionMemory(
+            db_path=getattr(config, 'session_db_path', 'data/session_memory.db')
+        )
+        self.knowledge_memory = LongTermKnowledgeMemory(
+            db_path=getattr(config, 'knowledge_db_path', 'data/knowledge_memory.db'),
+            vector_path=getattr(config, 'vector_store_path', 'data/vector_store')
+        )
         
         # Memory coordination state
         self.active_sessions = {}

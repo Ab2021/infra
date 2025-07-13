@@ -137,9 +137,13 @@ OPENAI_MODEL="gpt-4o"
 
 ### Memory System
 ```env
-MEMORY_BACKEND="postgresql"
+MEMORY_BACKEND="sqlite"
+SESSION_DB_PATH="data/session_memory.db"
+KNOWLEDGE_DB_PATH="data/knowledge_memory.db"
 REDIS_URL="redis://localhost:6379"
-VECTOR_STORE_PROVIDER="chromadb"
+VECTOR_STORE_PROVIDER="faiss"
+VECTOR_STORE_PATH="data/vector_store"
+EMBEDDING_MODEL="all-MiniLM-L6-v2"
 ```
 
 ## ðŸ“Š API Endpoints
@@ -257,6 +261,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## ðŸŽ¯ Roadmap
 
 - [ ] Support for additional databases (PostgreSQL, BigQuery)
+- [ ] Enhanced vector search capabilities with advanced FAISS indices
 - [ ] Advanced visualization types
 - [ ] Real-time query streaming
 - [ ] Multi-tenant support

@@ -6,7 +6,8 @@ Main application entry point for the memory-driven SQL generation system.
 import asyncio
 import logging
 from typing import Optional
-from agents.sql_workflow import SQLGenerationWorkflow
+from datetime import datetime
+from workflows.sql_workflow import SQLGenerationWorkflow
 from memory.memory_manager import MemoryManager
 from database.snowflake_connector import SnowflakeConnector
 from config.settings import Settings

@@ -36,14 +36,15 @@ class Settings(BaseSettings):
     anthropic_api_key: Optional[str] = Field(default=None, description="Anthropic API key")
     
     # === Memory System Settings ===
-    memory_backend: str = Field(default="postgresql", description="Memory storage backend")
-    memory_connection_string: Optional[str] = Field(default=None, description="Memory database connection string")
+    memory_backend: str = Field(default="sqlite", description="Memory storage backend")
+    session_db_path: str = Field(default="data/session_memory.db", description="SQLite path for session memory")
+    knowledge_db_path: str = Field(default="data/knowledge_memory.db", description="SQLite path for knowledge memory")
     redis_url: Optional[str] = Field(default="redis://localhost:6379", description="Redis URL for caching")
     
     # === Vector Store Settings ===
-    vector_store_provider: str = Field(default="chromadb", description="Vector store provider")
+    vector_store_provider: str = Field(default="faiss", description="Vector store provider")
     vector_store_path: str = Field(default="./data/vector_store", description="Vector store data path")
-    embedding_model: str = Field(default="text-embedding-ada-002", description="Embedding model")
+    embedding_model: str = Field(default="all-MiniLM-L6-v2", description="Sentence transformer embedding model")
     
     # === Performance Settings ===
     max_concurrent_queries: int = Field(default=10, description="Maximum concurrent queries")
