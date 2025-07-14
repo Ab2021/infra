@@ -104,17 +104,17 @@ def create_test_directories():
 def print_test_header(test_name: str, description: str = ""):
     """Print formatted test header"""
     print(f"\n{'='*60}")
-    print(f"🧪 TEST: {test_name}")
+    print(f"[TEST] TEST: {test_name}")
     if description:
-        print(f"📋 Description: {description}")
+        print(f"[INFO] Description: {description}")
     print(f"{'='*60}")
 
 def print_test_result(success: bool, message: str = ""):
     """Print formatted test result"""
-    status = "✅ PASSED" if success else "❌ FAILED"
+    status = "[PASS] PASSED" if success else "[FAIL] FAILED"
     print(f"\n{status}")
     if message:
-        print(f"📝 Details: {message}")
+        print(f"[NOTE] Details: {message}")
 
 def format_duration(start_time: datetime) -> str:
     """Format duration since start time"""
@@ -163,18 +163,18 @@ async def test_schema_loading():
         # Check for column name variations (spaces, etc.)
         column_names_with_spaces = column_catalog['Feature Name'].apply(lambda x: ' ' in str(x)).sum()
         
-        print(f"📊 Schema Statistics:")
+        print(f"[STATS] Schema Statistics:")
         print(f"   - Tables loaded: {tables_count}")
         print(f"   - Columns loaded: {columns_count}")
         print(f"   - Columns with spaces: {column_names_with_spaces}")
         print(f"   - Load time: {format_duration(start_time)}")
         
         # Display sample data
-        print(f"\n📋 Sample Tables:")
+        print(f"\n[INFO] Sample Tables:")
         for i, row in table_catalog.head(3).iterrows():
             print(f"   - {row['DATABASE']}.{row['SCHEMA']}.{row['TABLE']}: {row['Brief_Description']}")
         
-        print(f"\n📋 Sample Columns:")
+        print(f"\n[INFO] Sample Columns:")
         for i, row in column_catalog.head(5).iterrows():
             print(f"   - {row['Table Name']}.{row['Feature Name']} ({row['Data Type']})")
         
@@ -227,7 +227,7 @@ async def test_system_initialization():
         # Test system status
         status = await system.get_system_status()
         
-        print(f"📊 System Status:")
+        print(f"[STATS] System Status:")
         print(f"   - Status: {status.get('system_status')}")
         print(f"   - Tables: {status.get('schema_info', {}).get('total_tables', 0)}")
         print(f"   - Columns: {status.get('schema_info', {}).get('total_columns', 0)}")
@@ -277,12 +277,12 @@ async def test_agent_pipeline(system, test_query: Dict):
             return False
         
         # Display results
-        print(f"📊 Pipeline Results:")
+        print(f"[STATS] Pipeline Results:")
         print(f"   - Processing time: {result.get('processing_time', 0):.2f}s")
         print(f"   - Total time: {processing_time}")
         print(f"   - Confidence: {result.get('query_understanding', {}).get('confidence', 0):.2f}")
         
-        print(f"\n🎯 Query Understanding:")
+        print(f"\n[TARGET] Query Understanding:")
         understanding = result.get('query_understanding', {})
         if understanding.get('query_intent'):
             intent = understanding['query_intent']
@@ -293,13 +293,13 @@ async def test_agent_pipeline(system, test_query: Dict):
             else:
                 print(f"   - Intent: {intent}")
         
-        print(f"\n📊 Data Profiling:")
+        print(f"\n[STATS] Data Profiling:")
         profiling = result.get('data_profiling', {})
         column_profiles = profiling.get('column_profiles', {})
         print(f"   - Columns profiled: {len(column_profiles)}")
         print(f"   - Quality metrics: {profiling.get('quality_metrics', {})}")
         
-        print(f"\n🔍 SQL Generation:")
+        print(f"\n[SEARCH] SQL Generation:")
         sql_query = result.get('sql_query', '')
         chart_config = result.get('chart_config', {})
         print(f"   - SQL length: {len(sql_query)} characters")
@@ -308,7 +308,7 @@ async def test_agent_pipeline(system, test_query: Dict):
         
         # Display generated SQL (truncated)
         if sql_query:
-            print(f"\n📝 Generated SQL:")
+            print(f"\n[NOTE] Generated SQL:")
             print(f"   {sql_query[:200]}{'...' if len(sql_query) > 200 else ''}")
         
         print_test_result(True, f"Pipeline completed successfully in {processing_time}")
@@ -341,7 +341,7 @@ async def test_sql_execution(system):
             # Execute SQL
             execution_result = await system.execute_sql_and_get_results(sql_query)
             
-            print(f"\n📋 Test Query {i}: {sql_query}")
+            print(f"\n[INFO] Test Query {i}: {sql_query}")
             print(f"   - Success: {execution_result.get('success', False)}")
             print(f"   - Rows returned: {execution_result.get('result_count', 0)}")
             print(f"   - Execution time: {execution_result.get('execution_time', 0):.3f}s")
@@ -375,7 +375,7 @@ async def test_memory_system(system):
         # Test session creation
         logger.info("Testing session management")
         session_id = await memory_system.create_session("test_user")
-        print(f"📋 Session created: {session_id}")
+        print(f"[INFO] Session created: {session_id}")
         
         # Test conversation storage
         await memory_system.add_to_conversation(
@@ -390,7 +390,7 @@ async def test_memory_system(system):
         # Test session context retrieval
         context = await memory_system.get_session_context(session_id)
         conversation_count = len(context.get("conversation_history", []))
-        print(f"📋 Conversations in session: {conversation_count}")
+        print(f"[INFO] Conversations in session: {conversation_count}")
         
         # Test successful query storage
         await memory_system.store_successful_query(
@@ -404,11 +404,11 @@ async def test_memory_system(system):
         
         # Test pattern similarity search
         similar_queries = await memory_system.find_similar_queries("Test query", top_k=3)
-        print(f"📋 Similar queries found: {len(similar_queries)}")
+        print(f"[INFO] Similar queries found: {len(similar_queries)}")
         
         # Test memory statistics
         stats = await memory_system.get_memory_stats()
-        print(f"\n📊 Memory Statistics:")
+        print(f"\n[STATS] Memory Statistics:")
         for key, value in stats.items():
             print(f"   - {key}: {value}")
         
@@ -440,7 +440,7 @@ async def test_column_name_handling(system):
             ("Policy Number", "Policy Number"),  # Should handle existing spaces
         ]
         
-        print(f"\n📋 Column Name Resolution Tests:")
+        print(f"\n[INFO] Column Name Resolution Tests:")
         for input_name, expected in test_cases:
             resolved = agent.resolve_column_name(input_name)
             quoted = agent.quote_column_name(resolved or input_name)
@@ -448,13 +448,13 @@ async def test_column_name_handling(system):
             print(f"   - '{input_name}' → '{resolved}' → '{quoted}'")
         
         # Test column mapping creation
-        print(f"\n📊 Column Mapping Statistics:")
+        print(f"\n[STATS] Column Mapping Statistics:")
         print(f"   - Total mappings: {len(agent.column_mapping)}")
         print(f"   - Available columns: {len(agent.all_columns)}")
         
         # Sample some mappings
         sample_mappings = list(agent.column_mapping.items())[:5]
-        print(f"\n📋 Sample Mappings:")
+        print(f"\n[INFO] Sample Mappings:")
         for key, value in sample_mappings:
             print(f"   - '{key}' → '{value}'")
         
@@ -499,7 +499,7 @@ async def test_end_to_end_integration():
         
         # 3. Test Agent Pipeline with multiple queries
         print(f"\n{'='*60}")
-        print(f"🔄 TESTING AGENT PIPELINE WITH {len(TestConfig.TEST_QUERIES)} QUERIES")
+        print(f"[PROC] TESTING AGENT PIPELINE WITH {len(TestConfig.TEST_QUERIES)} QUERIES")
         print(f"{'='*60}")
         
         for i, test_query in enumerate(TestConfig.TEST_QUERIES, 1):
@@ -529,27 +529,27 @@ async def test_end_to_end_integration():
         total_time = format_duration(total_start_time)
         
         print(f"\n{'='*60}")
-        print(f"📊 FINAL TEST REPORT")
+        print(f"[STATS] FINAL TEST REPORT")
         print(f"{'='*60}")
         
-        print(f"⏱️  Total test time: {total_time}")
+        print(f"[TIME]  Total test time: {total_time}")
         
-        print(f"\n📋 Component Tests:")
-        print(f"   - Schema Loading: {'✅' if test_results['schema_loading'] else '❌'}")
-        print(f"   - System Init: {'✅' if test_results['system_initialization'] else '❌'}")
-        print(f"   - SQL Execution: {'✅' if test_results['sql_execution'] else '❌'}")
-        print(f"   - Memory System: {'✅' if test_results['memory_system'] else '❌'}")
-        print(f"   - Column Handling: {'✅' if test_results['column_handling'] else '❌'}")
+        print(f"\n[INFO] Component Tests:")
+        print(f"   - Schema Loading: {'[PASS]' if test_results['schema_loading'] else '[FAIL]'}")
+        print(f"   - System Init: {'[PASS]' if test_results['system_initialization'] else '[FAIL]'}")
+        print(f"   - SQL Execution: {'[PASS]' if test_results['sql_execution'] else '[FAIL]'}")
+        print(f"   - Memory System: {'[PASS]' if test_results['memory_system'] else '[FAIL]'}")
+        print(f"   - Column Handling: {'[PASS]' if test_results['column_handling'] else '[FAIL]'}")
         
-        print(f"\n📋 Query Pipeline Tests:")
+        print(f"\n[INFO] Query Pipeline Tests:")
         pipeline_success = 0
         for result in test_results["agent_pipeline"]:
-            status = "✅" if result["success"] else "❌"
+            status = "[PASS]" if result["success"] else "[FAIL]"
             print(f"   - {status} {result['query']}")
             if result["success"]:
                 pipeline_success += 1
         
-        print(f"\n📊 Success Rate:")
+        print(f"\n[STATS] Success Rate:")
         total_tests = (5 + len(test_results["agent_pipeline"]))  # 5 component tests + pipeline tests
         total_success = (
             sum([
@@ -565,9 +565,9 @@ async def test_end_to_end_integration():
         print(f"   - Overall: {total_success}/{total_tests} ({success_rate:.1f}%)")
         
         if success_rate >= 80:
-            print(f"\n🎉 INTEGRATION TESTS PASSED! System is ready for production.")
+            print(f"\n[SUCCESS] INTEGRATION TESTS PASSED! System is ready for production.")
         else:
-            print(f"\n⚠️  INTEGRATION TESTS PARTIALLY FAILED. Review failed components.")
+            print(f"\n[WARN]  INTEGRATION TESTS PARTIALLY FAILED. Review failed components.")
         
         return test_results
         
@@ -594,13 +594,13 @@ async def interactive_test_mode():
         
         # Check if schema file exists
         if not Path(TestConfig.SCHEMA_FILE).exists():
-            print(f"❌ Schema file not found: {TestConfig.SCHEMA_FILE}")
-            print(f"📝 Please update TestConfig.SCHEMA_FILE path in test_main.py")
+            print(f"[FAIL] Schema file not found: {TestConfig.SCHEMA_FILE}")
+            print(f"[NOTE] Please update TestConfig.SCHEMA_FILE path in test_main.py")
             return
         
         await system.initialize(TestConfig.SCHEMA_FILE)
         
-        print(f"\n🤖 SQL Agent System - Interactive Test Mode")
+        print(f"\n[BOT] SQL Agent System - Interactive Test Mode")
         print(f"{'='*60}")
         print(f"Commands:")
         print(f"  'status' - Show system status")
@@ -611,20 +611,20 @@ async def interactive_test_mode():
         
         while True:
             try:
-                user_input = input(f"\n🧪 Test Command: ").strip()
+                user_input = input(f"\n[TEST] Test Command: ").strip()
                 
                 if user_input.lower() in ['exit', 'quit', 'q']:
                     break
                 
                 if user_input.lower() == 'status':
                     status = await system.get_system_status()
-                    print(f"\n📊 System Status:")
+                    print(f"\n[STATS] System Status:")
                     for key, value in status.items():
                         print(f"   - {key}: {value}")
                     continue
                 
                 if user_input.lower() == 'examples':
-                    print(f"\n📋 Example Queries:")
+                    print(f"\n[INFO] Example Queries:")
                     for i, example in enumerate(TestConfig.TEST_QUERIES, 1):
                         print(f"   {i}. {example['query']}")
                         print(f"      ({example['description']})")
@@ -633,56 +633,56 @@ async def interactive_test_mode():
                 if user_input.startswith('test '):
                     query = user_input[5:].strip()
                     if not query:
-                        print("❌ Please provide a query after 'test'")
+                        print("[FAIL] Please provide a query after 'test'")
                         continue
                     
-                    print(f"\n🔄 Testing query: {query}")
+                    print(f"\n[PROC] Testing query: {query}")
                     start_time = datetime.now()
                     
                     result = await system.process_query(query)
                     processing_time = format_duration(start_time)
                     
                     if result.get('success'):
-                        print(f"✅ Success! ({processing_time})")
-                        print(f"📝 SQL: {result.get('sql_query', '')[:200]}...")
-                        print(f"📊 Chart: {result.get('chart_config', {}).get('chart_type', 'none')}")
+                        print(f"[PASS] Success! ({processing_time})")
+                        print(f"[NOTE] SQL: {result.get('sql_query', '')[:200]}...")
+                        print(f"[STATS] Chart: {result.get('chart_config', {}).get('chart_type', 'none')}")
                     else:
-                        print(f"❌ Failed: {result.get('error', 'Unknown error')}")
+                        print(f"[FAIL] Failed: {result.get('error', 'Unknown error')}")
                     continue
                 
                 if not user_input:
                     continue
                 
                 # Default: treat as query
-                print(f"\n🔄 Processing: {user_input}")
+                print(f"\n[PROC] Processing: {user_input}")
                 start_time = datetime.now()
                 
                 result = await system.process_query(user_input)
                 processing_time = format_duration(start_time)
                 
                 if result.get('success'):
-                    print(f"✅ Success! ({processing_time})")
+                    print(f"[PASS] Success! ({processing_time})")
                     sql_query = result.get('sql_query', '')
                     if sql_query:
-                        print(f"📝 Generated SQL:")
+                        print(f"[NOTE] Generated SQL:")
                         print(f"   {sql_query}")
                     
                     chart_config = result.get('chart_config', {})
                     if chart_config:
-                        print(f"📊 Chart Config: {chart_config}")
+                        print(f"[STATS] Chart Config: {chart_config}")
                 else:
-                    print(f"❌ Error: {result.get('error', 'Unknown error')}")
+                    print(f"[FAIL] Error: {result.get('error', 'Unknown error')}")
                 
             except KeyboardInterrupt:
-                print(f"\n\n👋 Exiting interactive mode...")
+                print(f"\n\n[BYE] Exiting interactive mode...")
                 break
             except Exception as e:
-                print(f"❌ Error: {e}")
+                print(f"[FAIL] Error: {e}")
         
         await system.cleanup()
         
     except Exception as e:
-        print(f"❌ Interactive mode failed: {e}")
+        print(f"[FAIL] Interactive mode failed: {e}")
 
 # ========================================
 # MAIN TEST RUNNER
@@ -690,11 +690,11 @@ async def interactive_test_mode():
 
 async def main():
     """Main test runner"""
-    print(f"\n🧪 SQL AGENT SYSTEM - COMPREHENSIVE TEST SUITE")
+    print(f"\n[TEST] SQL AGENT SYSTEM - COMPREHENSIVE TEST SUITE")
     print(f"{'='*60}")
-    print(f"📅 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"📁 Working Directory: {os.getcwd()}")
-    print(f"📋 Schema File: {TestConfig.SCHEMA_FILE}")
+    print(f"[DATE] Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"[DIR] Working Directory: {os.getcwd()}")
+    print(f"[INFO] Schema File: {TestConfig.SCHEMA_FILE}")
     print(f"{'='*60}")
     
     # Create test directories
@@ -717,8 +717,8 @@ async def main():
     # Run full integration tests
     results = await test_end_to_end_integration()
     
-    print(f"\n🏁 Test suite completed!")
-    print(f"📊 Run 'python test_main.py interactive' for manual testing")
+    print(f"\n[DONE] Test suite completed!")
+    print(f"[STATS] Run 'python test_main.py interactive' for manual testing")
 
 if __name__ == "__main__":
     """
@@ -733,7 +733,7 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print(f"\n\n👋 Tests interrupted by user")
+        print(f"\n\n[BYE] Tests interrupted by user")
     except Exception as e:
-        print(f"\n💥 Test suite failed: {e}")
+        print(f"\n[ERROR] Test suite failed: {e}")
         sys.exit(1)

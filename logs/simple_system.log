@@ -1,8 +1,0 @@
-2025-07-13 20:31:43,527 - __main__ - INFO - Initializing Simplified SQL Agent System
-2025-07-13 20:31:43,527 - memory.simple_memory - ERROR - Failed to setup databases: asyncio.run() cannot be called from a running event loop
-2025-07-13 20:31:43,527 - __main__ - ERROR - Failed to initialize system: asyncio.run() cannot be called from a running event loop
-2025-07-13 20:31:43,527 - __main__ - ERROR - Fatal error: asyncio.run() cannot be called from a running event loop
-2025-07-13 21:29:28,933 - __main__ - INFO - Initializing Simplified SQL Agent System
-2025-07-13 21:29:28,933 - memory.simple_memory - ERROR - Failed to setup databases: asyncio.run() cannot be called from a running event loop
-2025-07-13 21:29:28,933 - __main__ - ERROR - Failed to initialize system: asyncio.run() cannot be called from a running event loop
-2025-07-13 21:29:28,935 - __main__ - ERROR - Fatal error: asyncio.run() cannot be called from a running event loop

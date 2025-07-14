@@ -51,8 +51,8 @@ class MemorySystem:
         
         self.logger = logging.getLogger(__name__)
         
-        # Initialize databases
-        self._setup_databases()
+        # Initialize databases (defer async initialization)
+        self._initialized = False
         
         # Session context cache
         self.session_contexts = {}
@@ -61,15 +61,20 @@ class MemorySystem:
         self._session_backup = {}
         self._knowledge_backup = {}
     
-    def _setup_databases(self):
-        """Setup database connections and tables"""
+    async def initialize(self):
+        """Initialize the memory system asynchronously"""
+        if self._initialized:
+            return
+            
         try:
             # Create knowledge directory if using file path
             if self.knowledge_db_path != ":memory:":
                 Path(os.path.dirname(self.knowledge_db_path)).mkdir(parents=True, exist_ok=True)
             
-            # Initialize databases synchronously
-            asyncio.run(self._create_tables())
+            # Initialize databases
+            await self._create_tables()
+            self._initialized = True
+            self.logger.info("Memory system initialized successfully")
             
         except Exception as e:
             self.logger.error(f"Failed to setup databases: {e}")
@@ -117,7 +122,9 @@ class MemorySystem:
                 
                 session_db.commit()
         
-        await asyncio.to_thread(create_session_tables)
+        # Python 3.8 compatible async execution
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, create_session_tables)
         
         # Knowledge memory tables (learning and patterns)
         def create_knowledge_tables():
@@ -185,7 +192,9 @@ class MemorySystem:
                 
                 knowledge_db.commit()
         
-        await asyncio.to_thread(create_knowledge_tables)
+        # Python 3.8 compatible async execution
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, create_knowledge_tables)
     
     # =========================
     # Session Management
