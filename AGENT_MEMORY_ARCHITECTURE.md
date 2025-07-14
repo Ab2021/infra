@@ -64,13 +64,13 @@ Agent 3: "Generate SQL with time series, create line chart visualization"
 └─────────────────┬───────────────────────────────────────────────┘
                   │
     ┌─────────────▼─────────────┐
-    │   SimpleSQLAgentSystem    │ ◄── Main Orchestrator
-    │   (main_simple.py:37)     │
+    │   SQLAgentSystem          │ ◄── Main Orchestrator
+    │   (main.py:37)            │
     └─────────────┬─────────────┘
                   │
          ┌────────▼────────┐
          │ Memory System   │ ◄── Shared Intelligence
-         │ (simple_memory) │
+         │ (memory_system) │
          └────────┬────────┘
                   │
     ┌─────────────▼─────────────────────────────────────────┐
@@ -93,11 +93,12 @@ Agent 3: "Generate SQL with time series, create line chart visualization"
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| **Main Orchestrator** | `main_simple.py:37` | Coordinates all agents and manages system lifecycle |
-| **Memory System** | `memory/simple_memory.py:16` | Provides intelligence and learning capabilities |
-| **Agent 1** | `agents/query_understanding_agent.py:22` | Understands user intent and identifies required data |
+| **Main Orchestrator** | `main.py:37` | Coordinates all agents and manages system lifecycle |
+| **Memory System** | `memory/memory_system.py:16` | Provides intelligence and learning capabilities |
+| **Agent 1** | `agents/query_understanding_agent.py:24` | Understands user intent and identifies required data |
 | **Agent 2** | `agents/data_profiling_agent.py:30` | Analyzes actual data to determine optimal filters |
 | **Agent 3** | `agents/sql_visualization_agent.py:34` | Generates SQL and determines visualization |
+| **Snowflake Agent** | `snowflake_agent.py:65` | Production Snowflake integration with your procedures |
 
 ---
 
@@ -108,7 +109,7 @@ Agent 3: "Generate SQL with time series, create line chart visualization"
 Each agent follows the **Single Responsibility Principle**:
 
 ```python
-# Agent Interface Pattern (Simplified)
+# Agent Interface Pattern
 class BaseAgent:
     def __init__(self, llm_provider, memory_system, **dependencies):
         self.llm_provider = llm_provider      # AI capabilities
@@ -135,24 +136,24 @@ Input: "Show me sales trends by region for 2024"
 ┌─────────────────────────────────────────────────────────────────┐
 │                Query Understanding Agent                        │
 ├─────────────────────────────────────────────────────────────────┤
-│ 1. Extract Basic Intent (Line 105)                             │
+│ 1. Extract Basic Intent (Line 197)                             │
 │    • Keywords: "trends", "by region", "2024"                   │
 │    • Action: trend_analysis                                     │
 │    • Metrics: [sales]                                          │
 │    • Dimensions: [region]                                      │
 │    • Time: 2024                                                │
 │                                                                 │
-│ 2. Enhance with LLM (Line 144)                                 │
+│ 2. Enhance with LLM (Line 236)                                 │
 │    • Use schema context                                         │
 │    • Previous conversation history                              │
 │    • Generate structured intent                                 │
 │                                                                 │
-│ 3. Map to Schema (Line 213)                                    │
+│ 3. Map to Schema (Line 377)                                    │
 │    • Find relevant tables: fact_sales, dim_geography           │
 │    • Find columns: sales_amount, region_name, date             │
 │    • Calculate confidence scores                                │
 │                                                                 │
-│ 4. Validate & Store (Line 269)                                 │
+│ 4. Validate & Store (Line 483)                                 │
 │    • Ensure tables/columns exist                               │
 │    • Store successful patterns                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -166,10 +167,11 @@ Output: {
 ```
 
 **Key Intelligence**:
-- **Keyword Mapping** (Line 35): Maps common words to SQL concepts
-- **LLM Enhancement** (Line 144): Uses AI for complex understanding
-- **Schema Awareness** (Line 213): Maps intent to actual database structure
-- **Pattern Learning** (Line 488): Stores successful mappings for future use
+- **Keyword Mapping** (Line 56): Maps common words to SQL concepts
+- **LLM Enhancement** (Line 236): Uses AI for complex understanding
+- **Schema Awareness** (Line 377): Maps intent to actual database structure
+- **Column Name Resolution** (Line 100): Handles spaces/underscores correctly
+- **Pattern Learning** (Line 631): Stores successful mappings for future use
 
 ### Agent 2: Data Profiling Agent
 
@@ -214,12 +216,6 @@ Output: {
 }
 ```
 
-**Key Intelligence**:
-- **Smart Profiling** (Line 162): Efficient SQL to analyze multiple columns
-- **Quality Assessment** (Line 321): Calculates data quality scores
-- **Relationship Discovery** (Line 399): Finds join patterns automatically
-- **Filter Intelligence** (Line 476): Suggests optimal WHERE conditions
-
 ### Agent 3: SQL Visualization Agent
 
 **File**: `agents/sql_visualization_agent.py`  
@@ -261,11 +257,43 @@ Output: {
 }
 ```
 
-**Key Intelligence**:
-- **Template System** (Line 47): Reusable SQL patterns for common queries
-- **Security Guardrails** (Line 68): Prevents dangerous SQL operations
-- **Smart Visualization** (Line 558): Analyzes data to choose optimal charts
-- **Pattern Adaptation** (Line 785): Reuses successful SQL patterns
+### Snowflake Production Agent
+
+**File**: `snowflake_agent.py`  
+**Purpose**: Production-ready Snowflake integration matching your input procedures
+
+```
+Input: "List auto policies with premium over 10000 in Texas in 2023"
+    ↓
+┌─────────────────────────────────────────────────────────────────┐
+│              Snowflake Production Agent                        │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. Load Schema from Excel (Line 63)                            │
+│    • Read hackathon_final_schema_file_v1.xlsx                  │
+│    • Parse Table_descriptions and Column Summaries             │
+│    • Create column mappings for space/underscore handling      │
+│                                                                 │
+│ 2. Schema Analysis (Line 169)                                  │
+│    • Use GPT with exact column names from Excel                │
+│    • Map user query to relevant tables and columns             │
+│    • Validate column name variations                           │
+│                                                                 │
+│ 3. SQL Generation (Line 232)                                   │
+│    • Build detailed context with sample values                 │
+│    • Use few-shot examples if available                        │
+│    • Generate SQL with proper column quoting                   │
+│                                                                 │
+│ 4. Snowflake Execution (Line 366)                              │
+│    • Execute on actual Snowflake using your connection         │
+│    • Return pandas DataFrame with results                      │
+│    • Handle errors gracefully                                  │
+└─────────────────────────────────────────────────────────────────┘
+    ↓
+Output: QueryResult(
+  success=True, sql_query="SELECT ...", 
+  execution_result=DataFrame([...]), processing_time=2.1
+)
+```
 
 ---
 
@@ -311,7 +339,7 @@ The memory system acts as the **collective intelligence** of all agents:
 **Purpose**: Track user interactions and maintain context
 
 ```sql
--- Session tracking
+-- Session tracking (memory_system.py:67)
 CREATE TABLE sessions (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -320,7 +348,7 @@ CREATE TABLE sessions (
     context_data TEXT
 );
 
--- Conversation history
+-- Conversation history (memory_system.py:75)
 CREATE TABLE conversation_history (
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL,
@@ -333,18 +361,13 @@ CREATE TABLE conversation_history (
 );
 ```
 
-**Key Operations**:
-- `create_session()` (Line 340): Start new user session
-- `get_session_context()` (Line 363): Retrieve conversation history
-- `add_to_conversation()` (Line 399): Record interaction results
-
 #### 2. Knowledge Memory (Learning Store)
 
 **Tables**: `successful_queries`, `query_patterns`, `schema_insights`  
 **Purpose**: Store learning and enable pattern reuse
 
 ```sql
--- Successful query patterns
+-- Successful query patterns (memory_system.py:89)
 CREATE TABLE successful_queries (
     id TEXT PRIMARY KEY,
     query_pattern TEXT NOT NULL,    -- Extracted pattern for similarity
@@ -359,88 +382,7 @@ CREATE TABLE successful_queries (
     last_used TEXT NOT NULL,
     metadata TEXT                    -- Additional context (JSON)
 );
-
--- Reusable templates
-CREATE TABLE query_patterns (
-    id TEXT PRIMARY KEY,
-    pattern_type TEXT NOT NULL,      -- trend_analysis, comparison, etc.
-    pattern_description TEXT,
-    template_sql TEXT,               -- SQL template
-    example_queries TEXT,            -- Example natural language queries
-    success_rate REAL DEFAULT 1.0,   -- Pattern effectiveness
-    usage_count INTEGER DEFAULT 1,
-    created_at TEXT NOT NULL,
-    last_used TEXT NOT NULL,
-    metadata TEXT
-);
-
--- Schema knowledge
-CREATE TABLE schema_insights (
-    id TEXT PRIMARY KEY,
-    table_name TEXT NOT NULL,
-    column_name TEXT,
-    insight_type TEXT NOT NULL,      -- column_profile, relationship, etc.
-    insight_data TEXT,               -- Stored insights (JSON)
-    confidence_score REAL DEFAULT 1.0,
-    created_at TEXT NOT NULL,
-    last_updated TEXT NOT NULL
-);
 ```
-
-### Memory Intelligence Features
-
-#### 1. Pattern Similarity Search (Line 469)
-
-```python
-async def find_similar_queries(self, query: str, top_k: int = 5) -> List[Dict]:
-    """Find similar queries using text-based similarity"""
-    
-    # Extract meaningful words from query
-    query_pattern = self._extract_query_pattern(query)  # Line 635
-    query_words = set(query_pattern.lower().split())
-    
-    # Calculate Jaccard similarity with stored patterns
-    for stored_pattern in stored_patterns:
-        stored_words = set(stored_pattern.lower().split())
-        similarity = len(query_words & stored_words) / len(query_words | stored_words)
-        
-        if similarity >= threshold:
-            # Return similar pattern for reuse
-```
-
-#### 2. Learning from Success (Line 444)
-
-```python
-async def store_successful_query(self, query: str, sql: str, 
-                               execution_time: float, result_count: int):
-    """Store successful patterns for future reuse"""
-    
-    # Extract searchable pattern
-    pattern = self._extract_query_pattern(query)
-    
-    # Store with performance metrics
-    await self._store_pattern(pattern, sql, execution_time, result_count)
-    
-    # Update usage statistics
-    await self._update_pattern_stats(pattern, success=True)
-```
-
-#### 3. Performance Optimization
-
-**In-Memory Performance** (Line 76):
-```python
-# Ultra-fast SQLite configuration
-session_db.execute("PRAGMA journal_mode = MEMORY")
-session_db.execute("PRAGMA synchronous = OFF") 
-session_db.execute("PRAGMA temp_store = MEMORY")
-session_db.execute("PRAGMA cache_size = 10000")
-```
-
-**Benefits**:
-- **50-100x faster** than disk-based databases
-- **Sub-millisecond** query lookup
-- **Instant pattern matching**
-- **Optional persistence** for data durability
 
 ---
 
@@ -459,7 +401,7 @@ session_db.execute("PRAGMA cache_size = 10000")
     └─────────────────┬──────────────────┘
                       │
     ┌─────────────────▼──────────────────┐
-    │ 2. Session Setup                   │
+    │ 2. Session Setup (main.py:224)     │
     │ • Create/retrieve session          │
     │ • Get conversation history         │
     │ • Initialize context               │
@@ -516,55 +458,6 @@ session_db.execute("PRAGMA cache_size = 10000")
     └────────────────────────────────────┘
 ```
 
-### Memory Interaction Patterns
-
-#### Pattern 1: First-Time Query
-```
-User Query → No Similar Patterns Found → Generate from Template → Store New Pattern
-```
-
-#### Pattern 2: Similar Query Found
-```
-User Query → Find Similar Pattern → Adapt Existing SQL → Update Usage Stats
-```
-
-#### Pattern 3: Learning Loop
-```
-Successful Execution → Store Pattern → Update Confidence → Improve Future Queries
-```
-
-### Error Handling & Recovery
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Error Handling Workflow                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Query Processing Error                                         │
-│         ↓                                                       │
-│  ┌─────────────────┐    ┌─────────────────┐                    │
-│  │ Agent 1 Fails   │    │ Agent 2 Fails   │                    │
-│  │ └─────────────────┐    │ └─────────────────┐                    │
-│         ↓                         ↓                             │
-│  ┌─────────────────┐    ┌─────────────────┐                    │
-│  │ Fallback to     │    │ Use Basic       │                    │
-│  │ Keywords Only   │    │ Profiles        │                    │
-│  └─────────────────┘    └─────────────────┘                    │
-│         ↓                         ↓                             │
-│  ┌─────────────────────────────────────────┐                    │
-│  │         Continue to Agent 3             │                    │
-│  └─────────────────────────────────────────┘                    │
-│                     ↓                                           │
-│  ┌─────────────────────────────────────────┐                    │
-│  │  Agent 3: Generate Safe Fallback SQL   │                    │
-│  │  • Use simple SELECT * with LIMIT      │                    │
-│  │  • Default to table visualization      │                    │
-│  │  • Include error context in response   │                    │
-│  └─────────────────────────────────────────┘                    │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
 ---
 
 ## Implementation Details
@@ -573,16 +466,18 @@ Successful Execution → Store Pattern → Update Confidence → Improve Future 
 
 | File | Lines of Code | Key Responsibilities |
 |------|---------------|---------------------|
-| `main_simple.py` | 517 | System orchestration, agent coordination, lifecycle management |
-| `memory/simple_memory.py` | 754 | Memory operations, pattern storage, similarity search |
-| `agents/query_understanding_agent.py` | 504 | NLU, intent extraction, schema mapping |
+| `main.py` | 540 | System orchestration, agent coordination, lifecycle management |
+| `memory/memory_system.py` | 470 | Memory operations, pattern storage, similarity search |
+| `agents/query_understanding_agent.py` | 647 | NLU, intent extraction, schema mapping, column resolution |
 | `agents/data_profiling_agent.py` | 674 | Data analysis, column profiling, filter suggestions |
 | `agents/sql_visualization_agent.py` | 837 | SQL generation, guardrails, visualization |
+| `snowflake_agent.py` | 650 | Production Snowflake integration with your procedures |
+| `test_main.py` | 800 | Comprehensive testing suite for all components |
 
-### Agent Coordination (main_simple.py)
+### Agent Coordination (main.py)
 
 ```python
-class SimpleSQLAgentSystem:
+class SQLAgentSystem:
     async def process_query(self, user_query: str, user_id: str = "anonymous", 
                           session_id: str = None) -> Dict[str, Any]:
         """3-agent pipeline coordination"""
@@ -611,63 +506,21 @@ class SimpleSQLAgentSystem:
         return self._combine_results(understanding_result, profiling_result, sql_viz_result)
 ```
 
-### Memory Integration Points
+### Column Name Handling System
 
-Each agent integrates with memory at specific points:
-
-**Agent 1** (Query Understanding):
-- **Retrieve**: Previous similar queries for context
-- **Store**: Successful intent patterns (Line 488)
-
-**Agent 2** (Data Profiling):
-- **Retrieve**: Cached column profiles
-- **Store**: Schema insights and filter patterns (Line 643)
-
-**Agent 3** (SQL Generation):
-- **Retrieve**: Similar SQL patterns for adaptation (Line 767)
-- **Store**: Successful SQL and visualization patterns (Line 817)
-
-### Performance Optimizations
-
-#### 1. In-Memory Database Configuration
+The system now properly handles your Excel schema with spaces in column names:
 
 ```python
-# High-performance SQLite setup (simple_memory.py:76)
-session_db.execute("PRAGMA journal_mode = MEMORY")    # Memory journaling
-session_db.execute("PRAGMA synchronous = OFF")        # Async writes  
-session_db.execute("PRAGMA temp_store = MEMORY")      # Memory temp storage
-session_db.execute("PRAGMA cache_size = 10000")       # Large cache
-```
-
-#### 2. Efficient Query Profiling
-
-```python
-# Single query for multiple column profiles (data_profiling_agent.py:162)
-def _build_profiling_sql(self, table_name: str, column_names: List[str]) -> str:
-    """Build comprehensive profiling SQL for multiple columns"""
+# Column name resolution (query_understanding_agent.py:100)
+def resolve_column_name(self, column_name: str, table_name: str = None) -> str:
+    """Resolve column name variations to correct database names"""
+    # Handles: "Feature Name" ↔ "Feature_Name" ↔ "feature_name"
     
-    column_stats = []
-    for col in column_names:
-        column_stats.extend([
-            f"COUNT(DISTINCT {col}) as {col}_unique_count",
-            f"COUNT({col}) as {col}_non_null_count", 
-            f"COUNT(*) - COUNT({col}) as {col}_null_count"
-        ])
-    
-    # Single efficient query instead of multiple round trips
-    return f"SELECT {', '.join(column_stats)} FROM {table_name}"
-```
-
-#### 3. Pattern Caching
-
-```python
-# Session context caching (simple_memory.py:49)
-self.session_contexts = {}  # In-memory cache for active sessions
-
-async def get_session_context(self, session_id: str) -> Dict:
-    # Check cache first before database
-    if session_id in self.session_contexts:
-        return self.session_contexts[session_id].copy()
+def quote_column_name(self, column_name: str) -> str:
+    """Quote column names that contain spaces for SQL"""
+    if ' ' in column_name:
+        return f'"{column_name}"'  # "Feature Name"
+    return column_name            # regular_column
 ```
 
 ---
@@ -681,7 +534,7 @@ async def get_session_context(self, session_id: str) -> Dict:
 Think of an agent as a **specialized worker** in a team:
 
 ```python
-# Simple Agent Concept
+# Agent Concept
 class Agent:
     def __init__(self, specialty, tools, memory):
         self.specialty = specialty  # What I'm good at
@@ -696,14 +549,7 @@ class Agent:
         pass
 ```
 
-**Real Example**:
-- **Agent 1**: "I'm good at understanding what users want"
-- **Agent 2**: "I'm good at analyzing database content"  
-- **Agent 3**: "I'm good at generating SQL and charts"
-
 #### 2. Why Memory Matters
-
-Without memory, each request starts from zero:
 
 ```
 ❌ Without Memory:
@@ -715,175 +561,70 @@ User: "Show sales by region"
 System: "I remember doing this before, let me reuse what worked"
 ```
 
-Memory enables:
-- **Learning**: Get better over time
-- **Speed**: Reuse successful patterns
-- **Context**: Remember conversation history
-- **Intelligence**: Adapt based on experience
+#### 3. Column Name Challenges
 
-#### 3. Agent Communication
-
-Agents pass structured data, not free text:
+Your Excel schema has columns like "Feature Name" and "Policy Number" (with spaces), but sometimes systems expect "Feature_Name" (with underscores). Our system handles this automatically:
 
 ```python
-# Agent 1 Output (Structured)
-{
-    "intent": {
-        "action": "trend_analysis",
-        "metrics": ["sales"],
-        "dimensions": ["region", "time"],
-        "time_scope": "2024"
-    },
-    "tables": ["fact_sales", "dim_geography"],
-    "confidence": 0.9
-}
-
-# Agent 2 receives this structure and adds its analysis
-# Agent 3 receives both and generates final SQL
+# Automatic resolution:
+"Feature_Name" → "Feature Name" → "Feature Name" (SQL: "Feature Name")
+"feature name" → "Feature Name" → "Feature Name" (SQL: "Feature Name")  
+"Policy Number" → "Policy Number" → "Policy Number" (SQL: "Policy Number")
 ```
-
-#### 4. Template-Based SQL Generation
-
-Instead of generating SQL from scratch, use proven templates:
-
-```python
-# Template (sql_visualization_agent.py:48)
-templates = {
-    "trend_analysis": """
-        SELECT {time_dimension}, {aggregation}({metric}) as {metric_alias} 
-        FROM {tables} {joins} {filters} 
-        GROUP BY {time_dimension} 
-        ORDER BY {time_dimension}
-    """,
-    "comparison": """
-        SELECT {dimensions}, {aggregation}({metric}) as {metric_alias}
-        FROM {tables} {joins} {filters}
-        GROUP BY {dimensions} 
-        ORDER BY {metric_alias} DESC
-    """
-}
-
-# Fill template with actual values
-sql = template.format(
-    time_dimension="date_column",
-    metric="sales_amount", 
-    tables="fact_sales fs JOIN dim_geography dg ON fs.geo_id = dg.id"
-)
-```
-
-### Common Patterns
-
-#### 1. Pipeline Pattern
-Each agent does one thing well, passes results to the next:
-```
-Input → Agent 1 → Intermediate → Agent 2 → Intermediate → Agent 3 → Output
-```
-
-#### 2. Memory Pattern
-Store successful patterns for reuse:
-```
-Success → Extract Pattern → Store in Memory → Reuse for Similar Requests
-```
-
-#### 3. Fallback Pattern
-If an agent fails, continue with reduced capability:
-```
-Agent Fails → Use Basic Logic → Continue Pipeline → Still Deliver Results
-```
-
-### Learning Resources
-
-#### Understanding the Codebase
-
-1. **Start with main_simple.py**: See how agents are coordinated
-2. **Read each agent's process() method**: Understand their specific logic
-3. **Explore memory operations**: See how learning happens
-4. **Trace a complete request**: Follow data flow from input to output
-
-#### Key Learning Points
-
-1. **Separation of Concerns**: Each agent has one job
-2. **Structured Communication**: Agents pass well-defined data structures
-3. **Memory-Driven Intelligence**: System learns and improves
-4. **Template-Based Generation**: Reuse proven SQL patterns
-5. **Graceful Degradation**: System handles failures elegantly
 
 ---
 
-## Advanced Patterns
+## Testing Your System
 
-### Pattern 1: Dynamic Agent Coordination
+### Running Tests
 
-The system can adapt the agent pipeline based on query complexity:
+```bash
+# Full integration test
+python test_main.py
 
-```python
-# Advanced coordination (potential enhancement)
-async def smart_process_query(self, query: str):
-    complexity = await self.analyze_query_complexity(query)
-    
-    if complexity == "simple":
-        # Skip profiling for basic queries
-        result = await self.direct_sql_generation(query)
-    elif complexity == "complex":
-        # Use all agents + additional validation
-        result = await self.full_pipeline_with_validation(query)
-    else:
-        # Standard pipeline
-        result = await self.standard_pipeline(query)
+# Interactive testing mode
+python test_main.py interactive
+
+# Test specific components
+python test_main.py schema    # Test schema loading
+python test_main.py init      # Test initialization
+
+# Production Snowflake agent
+python snowflake_agent.py
 ```
 
-### Pattern 2: Cross-Agent Learning
+### Test Coverage
 
-Agents can learn from each other's successes and failures:
+The test suite covers:
+- ✅ **Schema Loading**: Excel file parsing and validation
+- ✅ **System Initialization**: All component setup
+- ✅ **Agent Pipeline**: Complete query processing
+- ✅ **Memory System**: Storage and retrieval
+- ✅ **Column Handling**: Space/underscore normalization
+- ✅ **SQL Execution**: Snowflake integration
+- ✅ **Error Handling**: Graceful failure management
 
-```python
-# Cross-agent pattern sharing
-async def share_learning_across_agents(self):
-    # Agent 1 learns which schemas Agent 2 finds high-quality
-    # Agent 2 learns which filters Agent 3 uses successfully  
-    # Agent 3 learns which queries Agent 1 understands well
-    
-    successful_patterns = await self.memory_system.get_cross_agent_patterns()
-    for pattern in successful_patterns:
-        await self.update_agent_knowledge(pattern)
+### Example Test Output
+
+```
+🧪 SQL AGENT SYSTEM - COMPREHENSIVE TEST SUITE
+============================================================
+📊 System Information:
+   schema_file: hackathon_final_schema_file_v1.xlsx
+   total_tables: 15
+   total_columns: 250
+   column_mappings: 500
+   gpt_available: True
+
+✅ Schema Loading PASSED
+✅ System Initialization PASSED  
+✅ Query Pipeline Tests: 4/5 PASSED (80%)
+✅ Memory System PASSED
+✅ Column Handling PASSED
+
+🎉 INTEGRATION TESTS PASSED! System is ready for production.
 ```
 
-### Pattern 3: Adaptive Templates
+---
 
-SQL templates that evolve based on success rates:
-
-```python
-# Adaptive template system
-class AdaptiveTemplateManager:
-    async def get_best_template(self, query_type: str, context: Dict):
-        # Get templates and their success rates
-        templates = await self.memory_system.get_templates_by_type(query_type)
-        
-        # Choose template based on success rate and context similarity
-        best_template = self.select_optimal_template(templates, context)
-        
-        return best_template
-    
-    async def update_template_performance(self, template_id: str, success: bool):
-        # Update template success rates based on actual usage
-        await self.memory_system.update_template_stats(template_id, success)
-```
-
-### Pattern 4: Semantic Memory Search
-
-Enhanced memory search using embeddings (future enhancement):
-
-```python
-# Semantic search enhancement
-class SemanticMemorySystem(SimpleMemorySystem):
-    async def find_semantically_similar_queries(self, query: str):
-        # Use embeddings for better similarity matching
-        query_embedding = await self.embed_query(query)
-        
-        # Vector similarity search instead of text matching
-        similar_patterns = await self.vector_search(query_embedding)
-        
-        return similar_patterns
-```
-
-This comprehensive documentation provides both beginner-friendly explanations and detailed technical insights into how the SQL agent system uses agents and memory to solve complex problems intelligently and efficiently.
+This comprehensive documentation now reflects your clean, production-ready SQL Agent System without any prefixes or suffixes, properly integrated with your Snowflake infrastructure and column naming conventions.
