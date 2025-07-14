@@ -1,0 +1,101 @@
+2025-07-14 08:35:46,143 - __main__ - INFO - Initializing SQL Agent System
+2025-07-14 08:35:46,145 - __main__ - WARNING - Snowflake connection not available, using mock connector
+2025-07-14 08:35:46,145 - __main__ - WARNING - GPT API not available, using mock LLM
+2025-07-14 08:35:46,145 - __main__ - ERROR - Failed to initialize system: __init__() got an unexpected keyword argument 'all_columns'
+2025-07-14 08:35:46,145 - __main__ - ERROR - Fatal error: __init__() got an unexpected keyword argument 'all_columns'
+2025-07-14 08:36:51,238 - __main__ - INFO - Initializing SQL Agent System
+2025-07-14 08:36:51,238 - __main__ - WARNING - Snowflake connection not available, using mock connector
+2025-07-14 08:36:51,238 - __main__ - WARNING - GPT API not available, using mock LLM
+2025-07-14 08:36:51,238 - __main__ - ERROR - Failed to initialize system: __init__() got an unexpected keyword argument 'all_columns'
+2025-07-14 08:36:51,238 - __main__ - ERROR - Fatal error: __init__() got an unexpected keyword argument 'all_columns'
+2025-07-14 08:36:51,238 - asyncio - ERROR - Cancelling an overlapped future failed
+future: <_OverlappedFuture pending overlapped=<pending, 0x1d306290160> cb=[BaseProactorEventLoop._loop_self_reading()]>
+Traceback (most recent call last):
+  File "main.py", line 620, in main
+    await system.initialize()
+  File "main.py", line 119, in initialize
+    await self._initialize_agents()
+  File "main.py", line 356, in _initialize_agents
+    self.sql_viz_agent = SQLVisualizationAgent(
+TypeError: __init__() got an unexpected keyword argument 'all_columns'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Program Files\Python38\lib\asyncio\runners.py", line 43, in run
+    return loop.run_until_complete(main)
+  File "C:\Program Files\Python38\lib\asyncio\base_events.py", line 603, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\Python38\lib\asyncio\windows_events.py", line 316, in run_forever
+    super().run_forever()
+  File "C:\Program Files\Python38\lib\asyncio\base_events.py", line 570, in run_forever
+    self._run_once()
+  File "C:\Program Files\Python38\lib\asyncio\base_events.py", line 1859, in _run_once
+    handle._run()
+  File "C:\Program Files\Python38\lib\asyncio\events.py", line 81, in _run
+    self._context.run(self._callback, *self._args)
+  File "main.py", line 688, in main
+    sys.exit(1)
+SystemExit: 1
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Program Files\Python38\lib\asyncio\windows_events.py", line 66, in _cancel_overlapped
+    self._ov.cancel()
+OSError: [WinError 6] The handle is invalid
+2025-07-14 08:37:24,571 - __main__ - INFO - Initializing SQL Agent System
+2025-07-14 08:37:24,571 - __main__ - WARNING - Snowflake connection not available, using mock connector
+2025-07-14 08:37:24,571 - __main__ - WARNING - GPT API not available, using mock LLM
+2025-07-14 08:37:24,571 - __main__ - INFO - System initialized successfully. Memory stats: {'active_sessions': 0, 'total_conversations': 0, 'successful_queries': 0, 'stored_patterns': 0, 'schema_insights': 0, 'average_success_rate': 0.0, 'similarity_threshold': 0.8, 'session_cache_size': 0}
+2025-07-14 08:37:24,571 - __main__ - ERROR - Fatal error: 'charmap' codec can't encode character '\U0001f916' in position 2: character maps to <undefined>
+2025-07-14 08:37:58,085 - __main__ - INFO - Initializing SQL Agent System
+2025-07-14 08:37:58,087 - __main__ - WARNING - Snowflake connection not available, using mock connector
+2025-07-14 08:37:58,087 - __main__ - WARNING - GPT API not available, using mock LLM
+2025-07-14 08:37:58,091 - __main__ - INFO - System initialized successfully. Memory stats: {'active_sessions': 0, 'total_conversations': 0, 'successful_queries': 0, 'stored_patterns': 0, 'schema_insights': 0, 'average_success_rate': 0.0, 'similarity_threshold': 0.8, 'session_cache_size': 0}
+2025-07-14 08:38:33,386 - main - INFO - Initializing SQL Agent System
+2025-07-14 08:38:33,386 - main - WARNING - Snowflake connection not available, using mock connector
+2025-07-14 08:38:33,386 - main - WARNING - GPT API not available, using mock LLM
+2025-07-14 08:38:33,386 - main - INFO - System initialized successfully. Memory stats: {'active_sessions': 0, 'total_conversations': 0, 'successful_queries': 0, 'stored_patterns': 0, 'schema_insights': 0, 'average_success_rate': 0.0, 'similarity_threshold': 0.8, 'session_cache_size': 0}
+2025-07-14 08:38:33,401 - main - INFO - Processing query: Show total sales by region
+2025-07-14 08:38:33,402 - main - ERROR - Query processing failed after 0.00s: no such table: sessions
+2025-07-14 08:38:33,402 - main - INFO - Cleaning up system resources
+2025-07-14 08:38:33,402 - main - ERROR - Error during cleanup: no such table: conversation_history
+2025-07-14 08:40:46,987 - __main__ - INFO - Initializing SQL Agent System
+2025-07-14 08:40:46,987 - __main__ - WARNING - Snowflake connection not available, using mock connector
+2025-07-14 08:40:46,989 - __main__ - WARNING - GPT API not available, using mock LLM
+2025-07-14 08:40:46,991 - __main__ - INFO - System initialized successfully. Memory stats: {'active_sessions': 0, 'total_conversations': 0, 'successful_queries': 0, 'stored_patterns': 0, 'schema_insights': 0, 'average_success_rate': 0.0, 'similarity_threshold': 0.8, 'session_cache_size': 0}
+2025-07-14 08:49:04,122 - __main__ - INFO - Initializing SQL Agent System
+2025-07-14 08:49:04,122 - __main__ - WARNING - Snowflake connection not available, using mock connector
+2025-07-14 08:49:04,122 - __main__ - WARNING - GPT API not available, using mock LLM
+2025-07-14 08:49:04,129 - __main__ - INFO - System initialized successfully. Memory stats: {'active_sessions': 0, 'total_conversations': 0, 'successful_queries': 0, 'stored_patterns': 0, 'schema_insights': 0, 'average_success_rate': 0.0, 'similarity_threshold': 0.8, 'session_cache_size': 0}
+2025-07-14 08:49:04,133 - __main__ - INFO - Processing query: Show me sales data for the last quarter
+2025-07-14 08:49:04,134 - __main__ - ERROR - Query processing failed after 0.00s: no such table: sessions
+2025-07-14 08:49:04,134 - __main__ - INFO - Cleaning up system resources
+2025-07-14 08:49:04,135 - __main__ - ERROR - Error during cleanup: no such table: conversation_history
+2025-07-14 08:50:17,552 - __main__ - INFO - Initializing SQL Agent System
+2025-07-14 08:50:17,552 - __main__ - WARNING - Snowflake connection not available, using mock connector
+2025-07-14 08:50:17,553 - __main__ - WARNING - GPT API not available, using mock LLM
+2025-07-14 08:50:17,557 - __main__ - INFO - System initialized successfully. Memory stats: {'active_sessions': 0, 'total_conversations': 0, 'successful_queries': 0, 'stored_patterns': 0, 'schema_insights': 0, 'average_success_rate': 0.0, 'similarity_threshold': 0.8, 'session_cache_size': 0}
+2025-07-14 08:50:17,560 - __main__ - INFO - Processing query: Show me sales data for the last quarter
+2025-07-14 08:50:17,562 - __main__ - ERROR - Query processing failed after 0.00s: no such table: sessions
+2025-07-14 08:50:17,563 - __main__ - INFO - Cleaning up system resources
+2025-07-14 08:50:17,564 - __main__ - ERROR - Error during cleanup: no such table: conversation_history
+2025-07-14 08:52:29,240 - __main__ - INFO - Initializing SQL Agent System
+2025-07-14 08:52:29,263 - memory.memory_system - INFO - Memory system initialized successfully
+2025-07-14 08:52:29,263 - __main__ - WARNING - Snowflake connection not available, using mock connector
+2025-07-14 08:52:29,263 - __main__ - WARNING - GPT API not available, using mock LLM
+2025-07-14 08:52:29,263 - __main__ - INFO - System initialized successfully. Memory stats: {'active_sessions': 0, 'total_conversations': 0, 'successful_queries': 0, 'stored_patterns': 0, 'schema_insights': 0, 'average_success_rate': 0.0, 'similarity_threshold': 0.8, 'session_cache_size': 0}
+2025-07-14 08:52:29,274 - __main__ - INFO - Processing query: Show me sales data for the last quarter
+2025-07-14 08:52:29,275 - __main__ - ERROR - Query processing failed after 0.00s: no such table: sessions
+2025-07-14 08:52:29,275 - __main__ - INFO - Cleaning up system resources
+2025-07-14 08:52:29,275 - __main__ - ERROR - Error during cleanup: no such table: conversation_history
+2025-07-14 09:00:13,052 - __main__ - INFO - Initializing SQL Agent System
+2025-07-14 09:00:13,052 - memory.memory_system - INFO - Memory system initialized successfully
+2025-07-14 09:00:13,052 - __main__ - WARNING - Snowflake connection not available, using mock connector
+2025-07-14 09:00:13,052 - __main__ - WARNING - GPT API not available, using mock LLM
+2025-07-14 09:00:13,052 - __main__ - INFO - System initialized successfully. Memory stats: {'active_sessions': 0, 'total_conversations': 0, 'successful_queries': 0, 'stored_patterns': 0, 'schema_insights': 0, 'average_success_rate': 0.0, 'similarity_threshold': 0.8, 'session_cache_size': 0}
+2025-07-14 09:00:13,067 - __main__ - INFO - Processing query: Show me sales data for the last quarter
+2025-07-14 09:00:13,069 - __main__ - ERROR - Query processing failed after 0.00s: no such table: sessions
+2025-07-14 09:00:13,069 - __main__ - INFO - Cleaning up system resources
+2025-07-14 09:00:13,070 - __main__ - ERROR - Error during cleanup: no such table: conversation_history

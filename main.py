@@ -104,6 +104,7 @@ class SQLAgentSystem:
                 knowledge_db_path=self.settings.knowledge_db_path,
                 similarity_threshold=self.settings.vector_similarity_threshold
             )
+            await self.memory_system.initialize()
             
             # Initialize database connector
             self.database_connector = await self._initialize_database_connector()
@@ -349,16 +350,14 @@ class SQLAgentSystem:
         # Agent 2: Data Profiling
         self.profiling_agent = DataProfilingAgent(
             database_connector=self.database_connector,
-            memory_system=self.memory_system,
-            all_columns=self.all_columns
+            memory_system=self.memory_system
         )
         
         # Agent 3: SQL Visualization
         self.sql_viz_agent = SQLVisualizationAgent(
             llm_provider=self.llm_provider,
             memory_system=self.memory_system,
-            database_connector=self.database_connector,
-            all_columns=self.all_columns
+            database_connector=self.database_connector
         )
     
     async def process_query(self, user_query: str, user_id: str = "anonymous", 
@@ -620,79 +619,66 @@ async def main():
         # Initialize system
         await system.initialize()
         
-        print("\n🤖 SQL Agent System")
+        print("\n[AI] SQL Agent System")
         print("=" * 50)
-        print("Commands:")
-        print("  'status' - Show system status")
-        print("  'exit' - Quit")
-        print("  Or enter natural language SQL queries")
+        print("System initialized successfully!")
         print("=" * 50)
         
-        while True:
-            try:
-                user_input = input("\n📝 Query: ").strip()
-                
-                if user_input.lower() in ['exit', 'quit', 'q']:
-                    break
-                
-                if user_input.lower() == 'status':
-                    status = await system.get_system_status()
-                    print(f"\n📊 System Status:")
-                    print(f"  Status: {status.get('system_status')}")
-                    print(f"  Tables: {status.get('schema_info', {}).get('total_tables', 0)}")
-                    print(f"  Columns: {status.get('schema_info', {}).get('total_columns', 0)}")
-                    print(f"  Memory: {status.get('memory_stats', {})}")
-                    continue
-                
-                if not user_input:
-                    continue
-                
-                # Process query
-                print("\n🔄 Processing...")
-                result = await system.process_query(user_input)
-                
-                # Display results
-                if result.get('success'):
-                    print(f"\n✅ Success! ({result.get('processing_time', 0):.2f}s)")
-                    print(f"\n📝 Generated SQL:")
-                    print(result.get('sql_query', 'No SQL generated'))
-                    
-                    chart_config = result.get('chart_config', {})
-                    if chart_config:
-                        print(f"\n📊 Chart: {chart_config.get('chart_type', 'unknown')}")
-                        print(f"   Title: {chart_config.get('title', 'No title')}")
-                    
-                    validation = result.get('validation', {})
-                    if validation.get('guardrails_passed'):
-                        print("✅ All guardrails passed")
-                    else:
-                        print("⚠️  Some guardrails failed")
-                        for warning in validation.get('performance_checks', []):
-                            print(f"   - {warning}")
-                
-                else:
-                    print(f"\n❌ Error: {result.get('error', 'Unknown error')}")
-                    print(f"   Type: {result.get('error_type', 'Unknown')}")
-                
-            except KeyboardInterrupt:
-                print("\n\n👋 Goodbye!")
-                break
-            except Exception as e:
-                print(f"\n❌ Error: {e}")
+        # Show system status
+        status = await system.get_system_status()
+        print(f"\n[STATS] System Status:")
+        print(f"  Status: {status.get('system_status')}")
+        print(f"  Tables: {status.get('schema_info', {}).get('total_tables', 0)}")
+        print(f"  Columns: {status.get('schema_info', {}).get('total_columns', 0)}")
+        print(f"  Memory: {status.get('memory_stats', {})}")
+        
+        # Run a demo query to test the system
+        demo_query = "Show me sales data for the last quarter"
+        print(f"\n[DEMO] Testing with query: '{demo_query}'")
+        print("[PROC] Processing...")
+        
+        result = await system.process_query(demo_query)
+        
+        # Display results
+        if result.get('success'):
+            print(f"\n[PASS] Success! ({result.get('processing_time', 0):.2f}s)")
+            print(f"\n[NOTE] Generated SQL:")
+            print(result.get('sql_query', 'No SQL generated'))
+            
+            chart_config = result.get('chart_config', {})
+            if chart_config:
+                print(f"\n[STATS] Chart: {chart_config.get('chart_type', 'unknown')}")
+                print(f"   Title: {chart_config.get('title', 'No title')}")
+            
+            validation = result.get('validation', {})
+            if validation.get('guardrails_passed'):
+                print("[PASS] All guardrails passed")
+            else:
+                print("[WARN] Some guardrails failed")
+                for warning in validation.get('performance_checks', []):
+                    print(f"   - {warning}")
+        
+        else:
+            print(f"\n[FAIL] Error: {result.get('error', 'Unknown error')}")
+            print(f"   Type: {result.get('error_type', 'Unknown')}")
+        
+        print(f"\n[INFO] System test completed. Use the Streamlit UI or FastAPI for interactive usage.")
+        print(f"  Streamlit: streamlit run ui/streamlit_app.py")
+        print(f"  FastAPI: python api/fastapi_app.py")
         
         # Cleanup
         await system.cleanup()
         
     except Exception as e:
         logger.error(f"Fatal error: {e}")
-        print(f"\n💥 Fatal error: {e}")
+        print(f"\n[ERROR] Fatal error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n\n👋 System shutdown requested")
+        print("\n\n[BYE] System shutdown requested")
     except Exception as e:
-        print(f"\n💥 Failed to start system: {e}")
+        print(f"\n[ERROR] Failed to start system: {e}")
         sys.exit(1)

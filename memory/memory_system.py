@@ -83,118 +83,108 @@ class MemorySystem:
     async def _create_tables(self):
         """Create necessary tables in both databases"""
         
-        # Session memory tables (conversation context)
-        def create_session_tables():
-            with sqlite3.connect(self.session_db_path, timeout=30.0) as session_db:
-                session_db.execute("PRAGMA foreign_keys = ON")
-                if self.session_db_path == ":memory:":
-                    session_db.execute("PRAGMA journal_mode = MEMORY")
-                    session_db.execute("PRAGMA synchronous = OFF")
-                else:
-                    session_db.execute("PRAGMA journal_mode = WAL")
-                    session_db.execute("PRAGMA synchronous = NORMAL")
-                session_db.execute("PRAGMA temp_store = MEMORY")
-                session_db.execute("PRAGMA cache_size = 10000")
-                
-                session_db.execute("""
-                    CREATE TABLE IF NOT EXISTS sessions (
-                        id TEXT PRIMARY KEY,
-                        user_id TEXT NOT NULL,
-                        created_at TEXT NOT NULL,
-                        last_activity TEXT NOT NULL,
-                        context_data TEXT
-                    )
-                """)
-                
-                session_db.execute("""
-                    CREATE TABLE IF NOT EXISTS conversation_history (
-                        id TEXT PRIMARY KEY,
-                        session_id TEXT NOT NULL,
-                        query TEXT NOT NULL,
-                        intent TEXT,
-                        tables_used TEXT,
-                        chart_type TEXT,
-                        success INTEGER DEFAULT 1,
-                        timestamp TEXT NOT NULL,
-                        FOREIGN KEY (session_id) REFERENCES sessions (id)
-                    )
-                """)
-                
-                session_db.commit()
+        # Session memory tables (conversation context) - use async for in-memory compatibility
+        async with aiosqlite.connect(self.session_db_path) as session_db:
+            await session_db.execute("PRAGMA foreign_keys = ON")
+            if self.session_db_path == ":memory:":
+                await session_db.execute("PRAGMA journal_mode = MEMORY")
+                await session_db.execute("PRAGMA synchronous = OFF")
+            else:
+                await session_db.execute("PRAGMA journal_mode = WAL")
+                await session_db.execute("PRAGMA synchronous = NORMAL")
+            await session_db.execute("PRAGMA temp_store = MEMORY")
+            await session_db.execute("PRAGMA cache_size = 10000")
+            
+            await session_db.execute("""
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    last_activity TEXT NOT NULL,
+                    context_data TEXT
+                )
+            """)
+            
+            await session_db.execute("""
+                CREATE TABLE IF NOT EXISTS conversation_history (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    query TEXT NOT NULL,
+                    intent TEXT,
+                    tables_used TEXT,
+                    chart_type TEXT,
+                    success INTEGER DEFAULT 1,
+                    timestamp TEXT NOT NULL,
+                    FOREIGN KEY (session_id) REFERENCES sessions (id)
+                )
+            """)
+            
+            await session_db.commit()
         
-        # Python 3.8 compatible async execution
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, create_session_tables)
-        
-        # Knowledge memory tables (learning and patterns)
-        def create_knowledge_tables():
-            with sqlite3.connect(self.knowledge_db_path, timeout=30.0) as knowledge_db:
-                knowledge_db.execute("PRAGMA foreign_keys = ON")
-                if self.knowledge_db_path == ":memory:":
-                    knowledge_db.execute("PRAGMA journal_mode = MEMORY")
-                    knowledge_db.execute("PRAGMA synchronous = OFF")
-                else:
-                    knowledge_db.execute("PRAGMA journal_mode = WAL")
-                    knowledge_db.execute("PRAGMA synchronous = NORMAL")
-                knowledge_db.execute("PRAGMA temp_store = MEMORY")
-                knowledge_db.execute("PRAGMA cache_size = 10000")
-                
-                knowledge_db.execute("""
-                    CREATE TABLE IF NOT EXISTS successful_queries (
-                        id TEXT PRIMARY KEY,
-                        query_pattern TEXT NOT NULL,
-                        sql_query TEXT NOT NULL,
-                        tables_used TEXT,
-                        chart_type TEXT,
-                        execution_time REAL DEFAULT 0.0,
-                        result_count INTEGER DEFAULT 0,
-                        success_score REAL DEFAULT 1.0,
-                        usage_count INTEGER DEFAULT 1,
-                        created_at TEXT NOT NULL,
-                        last_used TEXT NOT NULL,
-                        metadata TEXT
-                    )
-                """)
-                
-                knowledge_db.execute("""
-                    CREATE TABLE IF NOT EXISTS query_patterns (
-                        id TEXT PRIMARY KEY,
-                        pattern_type TEXT NOT NULL,
-                        pattern_description TEXT,
-                        template_sql TEXT,
-                        example_queries TEXT,
-                        success_rate REAL DEFAULT 1.0,
-                        usage_count INTEGER DEFAULT 1,
-                        created_at TEXT NOT NULL,
-                        last_used TEXT NOT NULL,
-                        metadata TEXT
-                    )
-                """)
-                
-                knowledge_db.execute("""
-                    CREATE TABLE IF NOT EXISTS schema_insights (
-                        id TEXT PRIMARY KEY,
-                        table_name TEXT NOT NULL,
-                        column_name TEXT,
-                        insight_type TEXT NOT NULL,
-                        insight_data TEXT,
-                        confidence_score REAL DEFAULT 1.0,
-                        created_at TEXT NOT NULL,
-                        last_updated TEXT NOT NULL
-                    )
-                """)
-                
-                # Create indexes for better performance
-                knowledge_db.execute("CREATE INDEX IF NOT EXISTS idx_query_pattern ON successful_queries(query_pattern)")
-                knowledge_db.execute("CREATE INDEX IF NOT EXISTS idx_last_used ON successful_queries(last_used)")
-                knowledge_db.execute("CREATE INDEX IF NOT EXISTS idx_pattern_type ON query_patterns(pattern_type)")
-                knowledge_db.execute("CREATE INDEX IF NOT EXISTS idx_table_name ON schema_insights(table_name)")
-                
-                knowledge_db.commit()
-        
-        # Python 3.8 compatible async execution
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, create_knowledge_tables)
+        # Knowledge memory tables (learning and patterns) - use async for consistency
+        async with aiosqlite.connect(self.knowledge_db_path) as knowledge_db:
+            await knowledge_db.execute("PRAGMA foreign_keys = ON")
+            if self.knowledge_db_path == ":memory:":
+                await knowledge_db.execute("PRAGMA journal_mode = MEMORY")
+                await knowledge_db.execute("PRAGMA synchronous = OFF")
+            else:
+                await knowledge_db.execute("PRAGMA journal_mode = WAL")
+                await knowledge_db.execute("PRAGMA synchronous = NORMAL")
+            await knowledge_db.execute("PRAGMA temp_store = MEMORY")
+            await knowledge_db.execute("PRAGMA cache_size = 10000")
+            
+            await knowledge_db.execute("""
+                CREATE TABLE IF NOT EXISTS successful_queries (
+                    id TEXT PRIMARY KEY,
+                    query_pattern TEXT NOT NULL,
+                    sql_query TEXT NOT NULL,
+                    tables_used TEXT,
+                    chart_type TEXT,
+                    execution_time REAL DEFAULT 0.0,
+                    result_count INTEGER DEFAULT 0,
+                    success_score REAL DEFAULT 1.0,
+                    usage_count INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    last_used TEXT NOT NULL,
+                    metadata TEXT
+                )
+            """)
+            
+            await knowledge_db.execute("""
+                CREATE TABLE IF NOT EXISTS query_patterns (
+                    id TEXT PRIMARY KEY,
+                    pattern_type TEXT NOT NULL,
+                    pattern_description TEXT,
+                    template_sql TEXT,
+                    example_queries TEXT,
+                    success_rate REAL DEFAULT 1.0,
+                    usage_count INTEGER DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    last_used TEXT NOT NULL,
+                    metadata TEXT
+                )
+            """)
+            
+            await knowledge_db.execute("""
+                CREATE TABLE IF NOT EXISTS schema_insights (
+                    id TEXT PRIMARY KEY,
+                    table_name TEXT NOT NULL,
+                    column_name TEXT,
+                    insight_type TEXT NOT NULL,
+                    insight_data TEXT,
+                    confidence_score REAL DEFAULT 1.0,
+                    created_at TEXT NOT NULL,
+                    last_updated TEXT NOT NULL
+                )
+            """)
+            
+            # Create indexes for better performance
+            await knowledge_db.execute("CREATE INDEX IF NOT EXISTS idx_query_pattern ON successful_queries(query_pattern)")
+            await knowledge_db.execute("CREATE INDEX IF NOT EXISTS idx_last_used ON successful_queries(last_used)")
+            await knowledge_db.execute("CREATE INDEX IF NOT EXISTS idx_pattern_type ON query_patterns(pattern_type)")
+            await knowledge_db.execute("CREATE INDEX IF NOT EXISTS idx_table_name ON schema_insights(table_name)")
+            
+            await knowledge_db.commit()
     
     # =========================
     # Session Management
