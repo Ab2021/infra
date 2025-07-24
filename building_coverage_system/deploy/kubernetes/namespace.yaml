@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: building-coverage
+  labels:
+    name: building-coverage
+    app: building-coverage-system
+    version: v1.0.0
+  annotations:
+    description: "Namespace for Building Coverage System components"

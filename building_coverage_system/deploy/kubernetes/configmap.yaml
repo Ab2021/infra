@@ -1,0 +1,156 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: building-coverage-config
+  namespace: building-coverage
+  labels:
+    app: building-coverage-system
+    component: config
+data:
+  app-config.yaml: |
+    app:
+      name: "Building Coverage System"
+      version: "1.0.0"
+      environment: "production"
+      debug: false
+      log_level: "INFO"
+    
+    database:
+      pool_size: 10
+      max_overflow: 20
+      pool_timeout: 30
+      pool_recycle: 3600
+      echo_sql: false
+    
+    embedding_model:
+      model_name: "all-MiniLM-L6-v2"
+      max_sequence_length: 512
+      batch_size: 32
+      device: "cpu"
+    
+    processing:
+      batch_size: 1000
+      max_workers: 4
+      chunk_size: 500
+      timeout: 300
+    
+    classification_thresholds:
+      building_coverage: 0.85
+      personal_property: 0.80
+      liability: 0.90
+      other_structures: 0.75
+    
+    cache:
+      redis_ttl: 3600
+      embedding_cache_size: 10000
+      query_cache_size: 1000
+    
+    monitoring:
+      metrics_enabled: true
+      health_check_interval: 30
+      log_retention_days: 30
+
+  logging-config.yaml: |
+    version: 1
+    disable_existing_loggers: false
+    
+    formatters:
+      default:
+        format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+      detailed:
+        format: '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s - %(message)s'
+      json:
+        format: '{"timestamp": "%(asctime)s", "logger": "%(name)s", "level": "%(levelname)s", "message": "%(message)s", "module": "%(module)s", "function": "%(funcName)s", "line": %(lineno)d}'
+    
+    handlers:
+      console:
+        class: logging.StreamHandler
+        level: INFO
+        formatter: default
+        stream: ext://sys.stdout
+      
+      file:
+        class: logging.handlers.RotatingFileHandler
+        level: INFO
+        formatter: detailed
+        filename: /app/logs/application.log
+        maxBytes: 10485760  # 10MB
+        backupCount: 5
+    
+    loggers:
+      building_coverage_system:
+        level: INFO
+        handlers: [console, file]
+        propagate: false
+      
+      sqlalchemy.engine:
+        level: WARNING
+        handlers: [console, file]
+        propagate: false
+    
+    root:
+      level: INFO
+      handlers: [console, file]
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: building-coverage-nginx-config
+  namespace: building-coverage
+  labels:
+    app: building-coverage-system
+    component: nginx
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+    
+    http {
+        upstream building_coverage_app {
+            server building-coverage-app-service:8000;
+        }
+        
+        server {
+            listen 80;
+            server_name _;
+            
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+            
+            location / {
+                proxy_pass http://building_coverage_app;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                
+                # Timeouts
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+                
+                # Buffer settings
+                proxy_buffering on;
+                proxy_buffer_size 4k;
+                proxy_buffers 8 4k;
+            }
+            
+            location /api/ {
+                proxy_pass http://building_coverage_app/api/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                
+                # API specific settings
+                proxy_connect_timeout 30s;
+                proxy_send_timeout 30s;
+                proxy_read_timeout 30s;
+            }
+        }
+    }
