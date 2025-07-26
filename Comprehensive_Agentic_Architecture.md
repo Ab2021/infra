@@ -1,8 +1,8 @@
-# Comprehensive Agentic AI Framework - Complete Implementation
+# Simple Two-Stage Agentic Architecture - FIXED Implementation
 
 ## Architecture Overview
 
-This is a complete agentic AI framework that addresses ALL requirements with detailed implementation, focusing on Section 2's building coverage functionality using LangGraph StateGraph with explicit prompt chaining, comprehensive memory management, and complete integration with existing dependencies.
+This is a SIMPLIFIED two-stage agentic framework that addresses ALL requirements with maximum simplicity. Stage 1 performs a single comprehensive sweep for 21 indicators. Stage 2 conditionally calculates BLDG_LOSS_AMOUNT using the 21 feature values, memory, and tools. NO over-complication.
 
 ---
 
