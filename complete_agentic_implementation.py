@@ -46,75 +46,11 @@ class AgenticState(TypedDict):
     final_output: Dict
 
 
-class AgenticMemoryStore:
-    """Memory management for agentic operations"""
-    
-    def __init__(self):
-        self.extraction_history = []
-        self.successful_patterns = {}
-        self.confidence_calibration = {}
-        self.similarity_index = {}
-        self.calculation_patterns = []
-    
-    def find_similar_claims(self, claim_text: str, limit: int = 5) -> List[Dict]:
-        """Find similar historical claims"""
-        similar_claims = []
-        
-        for historical_claim in self.extraction_history[-100:]:
-            similarity_score = self._calculate_text_similarity(
-                claim_text, 
-                historical_claim.get("original_text", "")
-            )
-            
-            if similarity_score > 0.7:
-                similar_claims.append({
-                    "historical_claim": historical_claim,
-                    "similarity_score": similarity_score,
-                    "success_indicators": historical_claim.get("success_metrics", {})
-                })
-        
-        return sorted(similar_claims, key=lambda x: x["similarity_score"], reverse=True)[:limit]
-    
-    def store_extraction_result(self, extraction_data: Dict):
-        """Store successful extraction for learning"""
-        self.extraction_history.append({
-            "timestamp": datetime.now().isoformat(),
-            "extraction_results": extraction_data,
-            "success_metrics": self._calculate_success_metrics(extraction_data),
-            "original_text": extraction_data.get("source_text", "")
-        })
-        
-        if len(self.extraction_history) > 500:
-            self.extraction_history = self.extraction_history[-500:]
-    
-    def find_similar_calculation_patterns(self, feature_context: Dict) -> List[Dict]:
-        """Find similar calculation patterns"""
-        return [p for p in self.calculation_patterns if self._patterns_match(p, feature_context)]
-    
-    def _calculate_text_similarity(self, text1: str, text2: str) -> float:
-        """Calculate text similarity"""
-        words1 = set(text1.lower().split())
-        words2 = set(text2.lower().split())
-        
-        if not words1 or not words2:
-            return 0.0
-        
-        intersection = words1.intersection(words2)
-        union = words1.union(words2)
-        
-        return len(intersection) / len(union) if union else 0.0
-    
-    def _calculate_success_metrics(self, extraction_data: Dict) -> Dict:
-        """Calculate success metrics"""
-        return {
-            "confidence_avg": 0.8,
-            "validation_passed": True,
-            "completeness": 1.0
-        }
-    
-    def _patterns_match(self, pattern: Dict, context: Dict) -> bool:
-        """Check if patterns match"""
-        return True  # Simplified for implementation
+# Import SQLite memory store
+from sqlite_memory_store import SQLiteMemoryStore
+
+# Use SQLite-based memory store
+AgenticMemoryStore = SQLiteMemoryStore
 
 
 class UnifiedExtractionAgent:
@@ -284,7 +220,9 @@ class UnifiedExtractionAgent:
         # Reflection and validation
         validated_results = await self._reflect_and_validate_comprehensive(extraction_results)
         
-        # Memory update
+        # Memory update - add source text for similarity matching
+        validated_results["source_text"] = claim_data["claim_text"]
+        validated_results["claim_id"] = claim_data.get("claim_id", "")
         self.memory_store.store_extraction_result(validated_results)
         
         return validated_results
@@ -1076,12 +1014,12 @@ class ValidationReflectionAgent:
             }
         }
         
-        # Store validation result for learning
-        self.memory_store.calculation_patterns.append({
-            "timestamp": datetime.now(),
-            "result": validated_result,
-            "context": context_analysis
-        })
+        # Store calculation pattern for learning
+        self.memory_store.store_calculation_pattern(
+            feature_context=context_analysis,
+            calculation_result=calculation_result,
+            validation_result=overall_validation
+        )
         
         return validated_result
     
