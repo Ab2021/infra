@@ -13,7 +13,8 @@ from typing import Dict, List, Any, TypedDict, Tuple
 from dataclasses import dataclass
 
 # Original codebase imports - maintaining compatibility
-from coverage_rag_implementation.src.helpers.gpt_api import GptApi
+from gpt_api_wrapper import GptApiWrapper as GptApi
+from config import GPTConfig, AgenticConfig, get_gpt_config
 from coverage_rag_implementation.src.text_processor import TextProcessor
 from coverage_rag_implementation.src.chunk_splitter import TextChunkSplitter
 from coverage_rules.src.coverage_transformations import DataFrameTransformations
@@ -374,16 +375,15 @@ class UnifiedExtractionAgent:
         Analyze the text and provide extraction strategy recommendations as JSON.
         """
         
-        response = self.gpt_api.generate_content(
-            prompt=context_prompt,
-            temperature=0.2,
-            max_tokens=1500
-        )
-        
         try:
-            return json.loads(response)
-        except json.JSONDecodeError:
-            return {"analysis": response, "parsing_error": True}
+            return await self.gpt_api.generate_json_content_async(
+                prompt=context_prompt,
+                temperature=0.2,
+                max_tokens=1500,
+                system_message="You are an expert building coverage analyst. Respond with valid JSON containing analysis and extraction strategy recommendations."
+            )
+        except Exception as e:
+            return {"analysis": f"Analysis failed: {str(e)}", "parsing_error": True}
     
     async def _execute_indicators_extraction(self, filtered_text: str, context_analysis: Dict) -> Dict:
         """Execute 21 indicators extraction with all keywords"""
@@ -467,16 +467,15 @@ class UnifiedExtractionAgent:
         }}
         """
         
-        response = self.gpt_api.generate_content(
-            prompt=indicators_prompt,
-            temperature=0.1,
-            max_tokens=3000
-        )
-        
         try:
-            return json.loads(response)
-        except json.JSONDecodeError:
-            return self._fallback_indicators_parsing(response)
+            return await self.gpt_api.generate_json_content_async(
+                prompt=indicators_prompt,
+                temperature=0.1,
+                max_tokens=3000,
+                system_message="You are an expert building damage assessor. Extract all 21 indicators with Y/N values, confidence scores, and evidence. Respond with valid JSON only."
+            )
+        except Exception as e:
+            return self._fallback_indicators_parsing(str(e))
     
     async def _execute_candidates_extraction(self, filtered_text: str, claim_data: Dict, indicators_result: Dict) -> Dict:
         """Execute BLDG_LOSS_AMOUNT candidates extraction"""
@@ -532,15 +531,14 @@ class UnifiedExtractionAgent:
         }}
         """
         
-        response = self.gpt_api.generate_content(
-            prompt=candidates_prompt,
-            temperature=0.1,
-            max_tokens=2500
-        )
-        
         try:
-            return json.loads(response)
-        except json.JSONDecodeError:
+            return await self.gpt_api.generate_json_content_async(
+                prompt=candidates_prompt,
+                temperature=0.1,
+                max_tokens=2500,
+                system_message="You are an expert financial analyst for insurance claims. Extract monetary candidates with hierarchical prioritization. Respond with valid JSON only."
+            )
+        except Exception as e:
             return self._fallback_candidates_parsing(filtered_text)
     
     async def _execute_validation_reflection(self, indicators_result: Dict, candidates_result: Dict) -> Dict:
@@ -580,16 +578,15 @@ class UnifiedExtractionAgent:
         Apply all original validation rules and provide final validated results as JSON.
         """
         
-        response = self.gpt_api.generate_content(
-            prompt=validation_prompt,
-            temperature=0.1,
-            max_tokens=2000
-        )
-        
         try:
-            return json.loads(response)
-        except json.JSONDecodeError:
-            return {"validation": response, "parsing_error": True}
+            return await self.gpt_api.generate_json_content_async(
+                prompt=validation_prompt,
+                temperature=0.1,
+                max_tokens=2000,
+                system_message="You are an expert validation specialist for building coverage analysis. Apply all validation rules and provide final assessment. Respond with valid JSON only."
+            )
+        except Exception as e:
+            return {"validation": f"Validation failed: {str(e)}", "parsing_error": True}
     
     async def _reflect_and_validate_comprehensive(self, extraction_results: Dict) -> Dict:
         """Apply comprehensive validation and reflection"""
@@ -1117,16 +1114,15 @@ class ValidationReflectionAgent:
         Provide quality assessment as JSON.
         """
         
-        response = self.gpt_api.generate_content(
-            prompt=reflection_prompt,
-            temperature=0.1,
-            max_tokens=1500
-        )
-        
         try:
-            reflection_result = json.loads(response)
-        except json.JSONDecodeError:
-            reflection_result = {"reflection_analysis": response, "parsing_error": True}
+            reflection_result = await self.gpt_api.generate_json_content_async(
+                prompt=reflection_prompt,
+                temperature=0.1,
+                max_tokens=1500,
+                system_message="You are an expert quality assessment specialist for financial calculations. Provide detailed quality reflection and assessment. Respond with valid JSON only."
+            )
+        except Exception as e:
+            reflection_result = {"reflection_analysis": f"Reflection failed: {str(e)}", "parsing_error": True}
         
         return {
             **reflection_result,
