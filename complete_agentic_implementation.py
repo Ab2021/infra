@@ -12,12 +12,12 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, TypedDict, Tuple
 from dataclasses import dataclass
 
-# Original codebase imports - maintaining compatibility
+# Core components and imports
 from gpt_api_wrapper import GptApiWrapper as GptApi
 from config import GPTConfig, AgenticConfig, get_gpt_config
-from coverage_rag_implementation.src.text_processor import TextProcessor
-from coverage_rag_implementation.src.chunk_splitter import TextChunkSplitter
-from coverage_rules.src.coverage_transformations import DataFrameTransformations
+from text_utils import TextProcessor
+from extraction_core import ExtractionCore
+from output_formatter import OutputFormatter
 from langgraph.graph import StateGraph, END
 
 # ============================================================================
@@ -54,13 +54,13 @@ AgenticMemoryStore = FAISSMemoryStore
 
 
 class UnifiedExtractionAgent:
-    """Stage 1: Single comprehensive agent with all original keywords preserved"""
+    """Stage 1: Single comprehensive agent with integrated core components"""
     
     def __init__(self):
-        # Initialize existing dependencies
+        # Initialize core components
         self.gpt_api = GptApi()
         self.text_processor = TextProcessor()
-        self.chunk_splitter = TextChunkSplitter()
+        self.extraction_core = ExtractionCore(self.gpt_api)
         
         # Memory and tools - using same model as codebase
         self.memory_store = AgenticMemoryStore(model_name="all-mpnet-base-v2")
@@ -266,40 +266,64 @@ class UnifiedExtractionAgent:
         }
     
     async def _execute_comprehensive_chain(self, claim_data: Dict, plan: Dict) -> Dict:
-        """Execute 4-stage comprehensive extraction chain"""
+        """Execute comprehensive extraction using integrated core components"""
         
-        # Preprocess text using original TextProcessor
-        processed_text = self.text_processor.remove_duplicate_sentences(claim_data["claim_text"])
-        filtered_text = self.text_processor.filter_important_keywords(processed_text)
+        # Preprocess text using TextProcessor
+        processed_text = self.text_processor.preprocess_for_extraction(claim_data["claim_text"])
         
-        # Chain 1: Context Analysis
-        context_analysis = await self._execute_context_analysis(filtered_text, claim_data)
+        # Use ExtractionCore for comprehensive indicator extraction
+        extraction_results = await self.extraction_core.extract_all_indicators(
+            processed_text, claim_data.get("claim_id", "")
+        )
         
-        # Chain 2: Indicator Extraction
-        indicators_result = await self._execute_indicators_extraction(filtered_text, context_analysis)
+        # Extract monetary candidates
+        monetary_candidates = self._extract_monetary_candidates(processed_text)
+        candidates_result = {"BLDG_LOSS_AMOUNT_CANDIDATES": {"values": monetary_candidates}}
         
-        # Chain 3: Monetary Candidates Extraction
-        candidates_result = await self._execute_candidates_extraction(filtered_text, claim_data, indicators_result)
-        
-        # Chain 4: Validation and Reflection
-        validation_result = await self._execute_validation_reflection(indicators_result, candidates_result)
+        # Apply validation
+        validation_result = await self._validate_extraction_comprehensive(extraction_results)
         
         return {
-            "context_analysis": context_analysis,
-            "indicators_extraction": indicators_result,
+            "context_analysis": {"processed_text": processed_text},
+            "indicators_extraction": extraction_results,
             "candidates_extraction": candidates_result,
             "comprehensive_validation": validation_result,
             "chain_execution_timestamp": datetime.now().isoformat()
         }
     
-    async def _execute_context_analysis(self, filtered_text: str, claim_data: Dict) -> Dict:
-        """Execute context analysis chain"""
+    def _extract_monetary_candidates(self, text: str) -> List[Dict]:
+        """Extract monetary value candidates from text"""
+        return self.text_processor.extract_monetary_values(text)
+    
+    async def _validate_extraction_comprehensive(self, extraction_results: Dict) -> Dict:
+        """Validate extraction results comprehensively"""
         
-        context_prompt = f"""
-        BUILDING COVERAGE ANALYSIS - COMPREHENSIVE TEXT ANALYSIS
+        # Get extraction summary
+        summary = self.extraction_core.get_extraction_summary(extraction_results)
         
-        Recent File Notes (Priority Context):
-        {self._create_recent_notes_summary(claim_data.get("file_notes", []))}
+        # Apply logical consistency rules  
+        consistency_check = self.tools["consistency_checker"].validate_logical_consistency(extraction_results)
+        
+        # Comprehensive validation using original rules
+        comprehensive_validation = self.tools["validator"].validate_comprehensive_extraction(
+            indicators=extraction_results,
+            candidates=extraction_results.get("BLDG_LOSS_AMOUNT_CANDIDATES", {}),
+            validation_rules=self.validation_rules
+        )
+        
+        validation_passed = (
+            consistency_check.get("passes_consistency", False) and
+            comprehensive_validation.get("meets_completeness", False) and
+            summary.get("extraction_completeness", 0) >= 0.6
+        )
+        
+        return {
+            "validation_passed": validation_passed,
+            "extraction_summary": summary,
+            "consistency_check": consistency_check,
+            "comprehensive_validation": comprehensive_validation,
+            "validation_timestamp": datetime.now().isoformat()
+        }
         
         Complete Claim Text:
         {filtered_text}
@@ -1486,13 +1510,22 @@ class TwoStageOrchestrator:
         return indicators
     
     def _apply_existing_transformations(self, results: Dict) -> Dict:
-        """Apply existing transformations"""
+        """Apply existing transformations using OutputFormatter"""
         
-        # Convert to format expected by existing transformations
-        # This would integrate with the original DataFrameTransformations
+        # Initialize output formatter
+        formatter = OutputFormatter()
+        
+        # Format results into database schema
+        formatted_record = formatter.format_extraction_results(
+            extraction_results=results.get("stage1_results", {}),
+            monetary_analysis=results.get("calculation_result", {}),
+            validation_results=results.get("validation_result", {})
+        )
+        
         return {
-            "transformed_results": results,
-            "transformation_applied": True
+            "formatted_record": formatted_record,
+            "transformation_applied": True,
+            "output_schema_columns": len(formatted_record)
         }
 
 

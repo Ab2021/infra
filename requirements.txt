@@ -63,6 +63,7 @@ sentence-transformers
 statistics
 math
 
-# Existing Codebase Dependencies (if available)
-# coverage-rag-implementation
-# coverage-rules
+# Integrated Core Components (replacing external dependencies)
+# text_utils.py - Essential TextProcessor methods
+# extraction_core.py - RAGProcessor extraction logic  
+# output_formatter.py - DataFrameTransformations methods
