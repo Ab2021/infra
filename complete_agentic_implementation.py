@@ -46,11 +46,11 @@ class AgenticState(TypedDict):
     final_output: Dict
 
 
-# Import SQLite memory store
-from sqlite_memory_store import SQLiteMemoryStore
+# Import FAISS memory store
+from faiss_memory_store import FAISSMemoryStore
 
-# Use SQLite-based memory store
-AgenticMemoryStore = SQLiteMemoryStore
+# Use FAISS-based memory store
+AgenticMemoryStore = FAISSMemoryStore
 
 
 class UnifiedExtractionAgent:
@@ -62,8 +62,8 @@ class UnifiedExtractionAgent:
         self.text_processor = TextProcessor()
         self.chunk_splitter = TextChunkSplitter()
         
-        # Memory and tools
-        self.memory_store = AgenticMemoryStore()
+        # Memory and tools - using same model as codebase
+        self.memory_store = AgenticMemoryStore(model_name="all-mpnet-base-v2")
         self.tools = {
             "validator": ComprehensiveValidator(),
             "temporal_analyzer": TemporalAnalyzer(),
@@ -1334,8 +1334,8 @@ class TwoStageOrchestrator:
     """Orchestrates the two-stage workflow"""
     
     def __init__(self):
-        # Initialize shared memory
-        self.memory_store = AgenticMemoryStore()
+        # Initialize shared memory - using same model as codebase
+        self.memory_store = AgenticMemoryStore(model_name="all-mpnet-base-v2")
         
         # Initialize agents
         self.stage1_agent = UnifiedExtractionAgent()

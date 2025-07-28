@@ -55,8 +55,9 @@ aiohttp==3.9.1
 pyyaml==6.0.1
 configparser==6.0.0
 
-# Memory & Caching (SQLite3 is built into Python)
-# No external dependencies needed for SQLite
+# Memory & Similarity Search
+faiss-cpu==1.7.4
+sentence-transformers
 
 # Mathematical Operations
 statistics
