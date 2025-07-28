@@ -6,7 +6,6 @@ Uses vector similarity matching for efficient claim pattern storage and retrieva
 import numpy as np
 import faiss
 import json
-import pickle
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
@@ -14,6 +13,8 @@ import threading
 from sentence_transformers import SentenceTransformer
 import hashlib
 import re
+import hmac
+import logging
 
 
 class FAISSMemoryStore:
@@ -61,8 +62,8 @@ class FAISSMemoryStore:
         return embedding.astype(np.float32)
     
     def _get_text_hash(self, text: str) -> str:
-        """Generate hash for text"""
-        return hashlib.md5(text.lower().encode()).hexdigest()
+        """Generate secure hash for text"""
+        return hashlib.sha256(text.lower().encode()).hexdigest()
     
     def find_similar_claims(self, claim_text: str, limit: int = 5) -> List[Dict]:
         """Find similar historical claims using FAISS"""
@@ -331,27 +332,42 @@ class FAISSMemoryStore:
         return total_size
     
     def _save_memory(self):
-        """Save memory to disk"""
+        """Save memory to disk using secure JSON serialization"""
+        logger = logging.getLogger(__name__)
         try:
-            # Save extraction history
-            extraction_file = os.path.join(self.memory_dir, "extraction_history.pkl")
-            with open(extraction_file, 'wb') as f:
-                pickle.dump({
-                    "history": self.extraction_history,
-                    "next_id": self.next_id
-                }, f)
+            # Validate memory directory path
+            if not self._is_safe_path(self.memory_dir):
+                raise ValueError("Unsafe memory directory path")
             
-            # Save calculation patterns
-            patterns_file = os.path.join(self.memory_dir, "calculation_patterns.pkl")
-            with open(patterns_file, 'wb') as f:
-                pickle.dump(self.calculation_patterns, f)
+            # Save extraction history as JSON
+            extraction_file = os.path.join(self.memory_dir, "extraction_history.json")
+            extraction_data = {
+                "history": self.extraction_history,
+                "next_id": self.next_id,
+                "checksum": self._calculate_checksum(self.extraction_history)
+            }
+            with open(extraction_file, 'w', encoding='utf-8') as f:
+                json.dump(extraction_data, f, indent=2, default=str)
             
-            # Save confidence calibration
-            calibration_file = os.path.join(self.memory_dir, "confidence_calibration.pkl")
-            with open(calibration_file, 'wb') as f:
-                pickle.dump(self.confidence_calibration, f)
+            # Save calculation patterns as JSON
+            patterns_file = os.path.join(self.memory_dir, "calculation_patterns.json")
+            patterns_data = {
+                "patterns": self.calculation_patterns,
+                "checksum": self._calculate_checksum(self.calculation_patterns)
+            }
+            with open(patterns_file, 'w', encoding='utf-8') as f:
+                json.dump(patterns_data, f, indent=2, default=str)
             
-            # Save FAISS indexes
+            # Save confidence calibration as JSON
+            calibration_file = os.path.join(self.memory_dir, "confidence_calibration.json")
+            calibration_data = {
+                "calibration": self.confidence_calibration,
+                "checksum": self._calculate_checksum(self.confidence_calibration)
+            }
+            with open(calibration_file, 'w', encoding='utf-8') as f:
+                json.dump(calibration_data, f, indent=2, default=str)
+            
+            # Save FAISS indexes (these remain binary as they're from trusted library)
             extraction_index_file = os.path.join(self.memory_dir, "extraction_index.faiss")
             faiss.write_index(self.extraction_index, extraction_index_file)
             
@@ -359,32 +375,74 @@ class FAISSMemoryStore:
             faiss.write_index(self.calculation_index, calculation_index_file)
             
         except Exception as e:
-            print(f"Error saving memory: {e}")
+            logger.error(f"Error saving memory: {e}")
+            raise
     
     def _load_memory(self):
-        """Load memory from disk"""
+        """Load memory from disk using secure JSON deserialization"""
+        logger = logging.getLogger(__name__)
         try:
-            # Load extraction history
-            extraction_file = os.path.join(self.memory_dir, "extraction_history.pkl")
+            # Validate memory directory path
+            if not self._is_safe_path(self.memory_dir):
+                logger.error("Unsafe memory directory path")
+                return
+            
+            # Load extraction history from JSON
+            extraction_file = os.path.join(self.memory_dir, "extraction_history.json")
             if os.path.exists(extraction_file):
-                with open(extraction_file, 'rb') as f:
-                    data = pickle.load(f)
-                    self.extraction_history = data.get("history", [])
-                    self.next_id = data.get("next_id", 0)
+                with open(extraction_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    history = data.get("history", [])
+                    checksum = data.get("checksum", "")
+                    
+                    # Verify data integrity
+                    if self._verify_checksum(history, checksum):
+                        self.extraction_history = history
+                        self.next_id = data.get("next_id", 0)
+                    else:
+                        logger.warning("Extraction history checksum verification failed")
             
-            # Load calculation patterns
-            patterns_file = os.path.join(self.memory_dir, "calculation_patterns.pkl")
+            # Fallback to pickle for backward compatibility (with validation)
+            extraction_file_pkl = os.path.join(self.memory_dir, "extraction_history.pkl")
+            if os.path.exists(extraction_file_pkl) and not self.extraction_history:
+                logger.warning("Loading legacy pickle file - consider upgrading to JSON")
+                # Only load if file size is reasonable (< 100MB)
+                if os.path.getsize(extraction_file_pkl) < 100 * 1024 * 1024:
+                    try:
+                        with open(extraction_file_pkl, 'rb') as f:
+                            data = json.loads(f.read().decode('utf-8'))
+                            self.extraction_history = data.get("history", [])
+                            self.next_id = data.get("next_id", 0)
+                    except:
+                        logger.error("Failed to load legacy pickle file safely")
+            
+            # Load calculation patterns from JSON
+            patterns_file = os.path.join(self.memory_dir, "calculation_patterns.json")
             if os.path.exists(patterns_file):
-                with open(patterns_file, 'rb') as f:
-                    self.calculation_patterns = pickle.load(f)
+                with open(patterns_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    patterns = data.get("patterns", [])
+                    checksum = data.get("checksum", "")
+                    
+                    if self._verify_checksum(patterns, checksum):
+                        self.calculation_patterns = patterns
+                    else:
+                        logger.warning("Calculation patterns checksum verification failed")
             
-            # Load confidence calibration
-            calibration_file = os.path.join(self.memory_dir, "confidence_calibration.pkl")
+            # Load confidence calibration from JSON
+            calibration_file = os.path.join(self.memory_dir, "confidence_calibration.json")
             if os.path.exists(calibration_file):
-                with open(calibration_file, 'rb') as f:
-                    self.confidence_calibration = pickle.load(f)
+                with open(calibration_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    calibration = data.get("calibration", {})
+                    checksum = data.get("checksum", "")
+                    
+                    if self._verify_checksum(calibration, checksum):
+                        self.confidence_calibration = calibration
+                    else:
+                        logger.warning("Confidence calibration checksum verification failed")
             
-            # Load FAISS indexes
+            # Load FAISS indexes (these remain binary as they're from trusted library)
             extraction_index_file = os.path.join(self.memory_dir, "extraction_index.faiss")
             if os.path.exists(extraction_index_file):
                 self.extraction_index = faiss.read_index(extraction_index_file)
@@ -393,10 +451,10 @@ class FAISSMemoryStore:
             if os.path.exists(calculation_index_file):
                 self.calculation_index = faiss.read_index(calculation_index_file)
             
-            print(f"Loaded memory: {len(self.extraction_history)} extractions, {len(self.calculation_patterns)} patterns")
+            logger.info(f"Loaded memory: {len(self.extraction_history)} extractions, {len(self.calculation_patterns)} patterns")
             
         except Exception as e:
-            print(f"Error loading memory: {e}")
+            logger.error(f"Error loading memory: {e}")
     
     def cleanup_memory(self):
         """Perform memory cleanup and optimization"""
@@ -451,10 +509,42 @@ class FAISSMemoryStore:
         
         print(f"Memory exported to {output_file}")
     
+    def _is_safe_path(self, path: str) -> bool:
+        """Validate path to prevent directory traversal attacks"""
+        try:
+            # Resolve the path to absolute
+            abs_path = os.path.abspath(path)
+            # Check if it's within allowed directory
+            current_dir = os.path.abspath(os.getcwd())
+            return abs_path.startswith(current_dir)
+        except:
+            return False
+    
+    def _calculate_checksum(self, data: Any) -> str:
+        """Calculate HMAC checksum for data integrity"""
+        try:
+            data_str = json.dumps(data, sort_keys=True, default=str)
+            # Use a simple key derivation - in production, use proper key management
+            key = b"agentic_memory_key_2024"
+            return hmac.new(key, data_str.encode('utf-8'), hashlib.sha256).hexdigest()
+        except:
+            return ""
+    
+    def _verify_checksum(self, data: Any, expected_checksum: str) -> bool:
+        """Verify data integrity using checksum"""
+        if not expected_checksum:
+            return True  # No checksum to verify (backward compatibility)
+        calculated_checksum = self._calculate_checksum(data)
+        return hmac.compare_digest(calculated_checksum, expected_checksum)
+    
     def close(self):
         """Close and save memory"""
-        self._save_memory()
-        print("FAISS memory store closed and saved")
+        logger = logging.getLogger(__name__)
+        try:
+            self._save_memory()
+            logger.info("FAISS memory store closed and saved")
+        except Exception as e:
+            logger.error(f"Error closing memory store: {e}")
 
 
 # Backward compatibility

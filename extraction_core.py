@@ -6,6 +6,7 @@ Key RAGProcessor extraction logic for 22 building indicators
 import asyncio
 import json
 import re
+import logging
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
@@ -101,13 +102,57 @@ class ExtractionCore:
         
         return final_results
     
+    def _sanitize_input_text(self, text: str) -> str:
+        """Sanitize input text to prevent prompt injection attacks"""
+        if not text or not isinstance(text, str):
+            return ""
+        
+        # Remove potential prompt injection patterns
+        dangerous_patterns = [
+            r'ignore\s+previous\s+instructions',
+            r'system\s*:',
+            r'assistant\s*:',
+            r'user\s*:',
+            r'###\s*instruction',
+            r'```.*?```',
+            r'\[INST\].*?\[/INST\]',
+            r'<\|.*?\|>',
+            r'act\s+as\s+if',
+            r'pretend\s+to\s+be',
+            r'role\s*play',
+            r'simulate\s+being'
+        ]
+        
+        sanitized_text = text
+        for pattern in dangerous_patterns:
+            sanitized_text = re.sub(pattern, '[REMOVED]', sanitized_text, flags=re.IGNORECASE)
+        
+        # Limit text length to prevent overflow attacks
+        max_length = 5000
+        if len(sanitized_text) > max_length:
+            sanitized_text = sanitized_text[:max_length] + "...[TRUNCATED]"
+        
+        # Remove excessive whitespace and control characters
+        sanitized_text = re.sub(r'\s+', ' ', sanitized_text)
+        sanitized_text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', sanitized_text)
+        
+        return sanitized_text.strip()
+    
     async def _extract_damage_indicators(self, claim_text: str) -> Dict[str, Any]:
         """Extract damage indicators (Stage 1) with complete keyword guidance"""
+        
+        # Sanitize input to prevent prompt injection
+        sanitized_text = self._sanitize_input_text(claim_text)
+        logger = logging.getLogger(__name__)
+        
+        if not sanitized_text:
+            logger.warning("Empty or invalid claim text provided")
+            return self._create_fallback_results(self.damage_indicators)
         
         prompt = f"""
         BUILDING COVERAGE ANALYSIS - DAMAGE INDICATORS EXTRACTION
         
-        CLAIM TEXT: {claim_text}
+        CLAIM TEXT: {sanitized_text}
         
         Extract the following 15 damage indicators using the provided keyword guidance. For each indicator:
         - value: "Y" if damage is present, "N" if not mentioned/absent  
@@ -152,10 +197,18 @@ class ExtractionCore:
     async def _extract_operational_indicators(self, claim_text: str) -> Dict[str, Any]:
         """Extract operational indicators (Stage 2) with keyword guidance"""
         
+        # Sanitize input to prevent prompt injection
+        sanitized_text = self._sanitize_input_text(claim_text)
+        logger = logging.getLogger(__name__)
+        
+        if not sanitized_text:
+            logger.warning("Empty or invalid claim text provided")
+            return self._create_fallback_results(self.operational_indicators)
+        
         prompt = f"""
         BUILDING COVERAGE ANALYSIS - OPERATIONAL INDICATORS EXTRACTION
         
-        CLAIM TEXT: {claim_text}
+        CLAIM TEXT: {sanitized_text}
         
         Extract the following 3 operational indicators using keyword guidance:
         
@@ -195,10 +248,18 @@ class ExtractionCore:
     async def _extract_contextual_indicators(self, claim_text: str) -> Dict[str, Any]:
         """Extract contextual indicators (Stage 3) with keyword guidance"""
         
+        # Sanitize input to prevent prompt injection
+        sanitized_text = self._sanitize_input_text(claim_text)
+        logger = logging.getLogger(__name__)
+        
+        if not sanitized_text:
+            logger.warning("Empty or invalid claim text provided")
+            return self._create_fallback_results(self.contextual_indicators)
+        
         prompt = f"""
         BUILDING COVERAGE ANALYSIS - CONTEXTUAL INDICATORS EXTRACTION
         
-        CLAIM TEXT: {claim_text}
+        CLAIM TEXT: {sanitized_text}
         
         Extract the following 4 contextual indicators using keyword guidance:
         
@@ -261,14 +322,25 @@ class ExtractionCore:
     async def _comprehensive_validation_with_reflection(self, claim_text: str, results: Dict) -> Dict[str, Any]:
         """Comprehensive validation with reflection questions from original codebase"""
         
+        # Sanitize input to prevent prompt injection
+        sanitized_text = self._sanitize_input_text(claim_text)
+        logger = logging.getLogger(__name__)
+        
+        if not sanitized_text:
+            logger.warning("Empty or invalid claim text for validation")
+            return self._apply_consistency_rules(results)
+        
+        # Sanitize results JSON to prevent injection through extracted data
+        sanitized_results = self._sanitize_json_data(results)
+        
         validation_prompt = f"""
         BUILDING COVERAGE ANALYSIS - COMPREHENSIVE VALIDATION & REFLECTION
         
         Original Claim Text:
-        {claim_text}
+        {sanitized_text}
         
         Extracted Results to Validate:
-        {json.dumps(results, indent=2)}
+        {json.dumps(sanitized_results, indent=2)}
         
         COMPREHENSIVE VALIDATION CHECKLIST:
         
@@ -452,6 +524,31 @@ class ExtractionCore:
                 # Reduce confidence for fallback results
                 if "fallback" in result.get("evidence", "").lower():
                     result["confidence"] = min(result["confidence"], 0.4)
+        
+    def _sanitize_json_data(self, data: Dict) -> Dict:
+        """Sanitize JSON data to prevent injection through extracted content"""
+        if not isinstance(data, dict):
+            return {}
+        
+        sanitized = {}
+        for key, value in data.items():
+            # Sanitize key
+            clean_key = re.sub(r'[^A-Za-z0-9_]', '_', str(key))[:50]
+            
+            if isinstance(value, dict):
+                sanitized[clean_key] = self._sanitize_json_data(value)
+            elif isinstance(value, str):
+                # Sanitize string values
+                clean_value = self._sanitize_input_text(value)[:500]  # Limit length
+                sanitized[clean_key] = clean_value
+            elif isinstance(value, (int, float, bool)):
+                sanitized[clean_key] = value
+            elif isinstance(value, list):
+                sanitized[clean_key] = [self._sanitize_input_text(str(item))[:100] for item in value[:10]]  # Limit list size
+            else:
+                sanitized[clean_key] = str(value)[:200]
+        
+        return sanitized
         
         return results
     
